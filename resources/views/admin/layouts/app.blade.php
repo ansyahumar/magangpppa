@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="id"
+      class="h-full"
+      x-data="themeManager()"
+      x-init="initTheme()">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <script>
+        window.csrfToken = "{{ csrf_token() }}";
+    </script>
+    <title>@yield('title', 'Admin Panel')</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { 
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#D8E90B' 
+                    }
+                }
+            }
+        }
+    </script>
+
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+
+    <style>
+        [x-cloak] { display: none !important; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 10px; }
+    </style>
+    <script src="https://cdn.ckeditor.com/ckeditor5/39.0.1/classic/ckeditor.js"></script>
+<style>
+    .ck-editor__editable { min-height: 200px !important; max-height: 400px !important; }
+    .ck.ck-editor { width: 100% !important; }
+    .content-preview table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+    .content-preview table td, .content-preview table th { border: 1px solid #ddd; padding: 8px; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script src="https://cdn.ckeditor.com/ckeditor5/39.0.1/classic/ckeditor.js"></script>
+<style>
+    .ck-editor__editable_inline {
+        min-height: 200px;
+        color: black !important; 
+    }
+    .ck-body-wrapper {
+        z-index: 9999;
+    }
+</style>
+</head>
+
+<body class="h-full bg-gray-100 dark:bg-gray-900 transition-colors duration-300">
+
+<div class="min-h-screen flex">
+
+    <div x-show="sidebarOpen" 
+         x-transition.opacity
+         @click="sidebarOpen = false" 
+         class="fixed inset-0 bg-black/50 z-20 lg:hidden" 
+         x-cloak></div>
+
+    <aside :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'"
+        class="fixed inset-y-0 left-0 w-64 bg-blue-600 dark:bg-blue-800 border-r border-blue-700 dark:border-blue-900 shadow-xl z-30 transform transition-transform duration-300 lg:translate-x-0 flex flex-col">
+        
+        <div class="p-5 border-b border-blue-700 dark:border-blue-900 flex items-center gap-3 shrink-0">
+            <x-application-logo class="h-10 w-auto" />
+            <h1 class="text-xl font-bold text-white tracking-tight">Admin Panel</h1>
+        </div>
+
+        <nav class="flex-1 overflow-y-auto p-4 space-y-2 text-white custom-scrollbar">
+            
+            <div class="relative group" 
+                 @mouseenter="handleHover('spbe_group')" 
+                 @mouseleave="handleLeave()">
+                
+                <button @click="handleToggle('spbe_group')" 
+                    class="w-full flex items-center justify-between px-4 py-2.5 rounded-lg font-medium transition-all border-l-4"
+                    :class="(openMenu === 'spbe_group') ? 'border-primary bg-blue-700 shadow-inner' : 'border-transparent hover:bg-blue-700/50'">
+                    <div class="flex items-center gap-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                        </svg>
+                        <span class="text-lg">SPBE</span>
+                    </div>
+                    <svg class="w-4 h-4 transition-transform duration-300" :class="openMenu === 'spbe_group' ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </button>
+                
+                <div x-show="openMenu === 'spbe_group'" 
+                     x-cloak 
+                     x-transition:enter="transition ease-out duration-200"
+                     x-transition:enter-start="opacity-0 -translate-y-2"
+                     x-transition:enter-end="opacity-100 translate-y-0"
+                     class="ml-6 mt-1 space-y-1 border-l-2 border-white/10">
+                    
+                    @php
+                        $navItems = [
+                            ['label' => 'Dashboard', 'route' => 'admin.dashboard', 'icon' => 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6'],
+                            ['label' => 'Hasil Penilaian', 'route' => 'admin.hasil', 'icon' => 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'],
+                            ['label' => 'Monitoring', 'route' => 'admin.monitoring', 'icon' => 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z'],
+                            ['label' => 'Master Data', 'route' => 'master.index', 'icon' => 'M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7c0-2-1-3-3-3H7c-2 0-3 1-3 3z']
+                        ];
+                    @endphp
+
+                    @foreach($navItems as $subItem)
+                    <a href="{{ route($subItem['route']) }}" 
+                       class="flex items-center gap-3 px-4 py-2 text-sm transition-all rounded-r-lg group"
+                       :class="'{{ request()->url() }}' === '{{ route($subItem['route']) }}' ? 'text-primary font-bold bg-white/10' : 'hover:text-primary hover:bg-white/5'">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-70 group-hover:opacity-100" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="{{ $subItem['icon'] }}" />
+                        </svg>
+                        {{ $subItem['label'] }}
+                    </a>
+                    @endforeach
+                </div>
+            </div>
+
+            <a href="{{ route('admin.users.index') }}"
+                class="flex items-center gap-3 px-4 py-2.5 rounded-lg font-medium transition-all border-l-4
+                {{ request()->routeIs('admin.users.*') ? 'border-primary bg-blue-700' : 'border-transparent hover:bg-blue-700/50' }}">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+                <span>Manajemen Akun</span>
+            </a>
+        </nav>
+    </aside>
+
+    <div class="flex-1 flex flex-col lg:ml-64">
+
+        <header class="sticky top-0 z-20 bg-blue-600 dark:bg-blue-900 text-white px-4 py-4 flex items-center justify-between shadow-md">
+            <button @click="sidebarOpen = !sidebarOpen" class="lg:hidden p-2 hover:bg-white/10 rounded-lg">
+                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+            </button>
+
+            <div class="ml-auto flex items-center gap-3">
+                <button @click="toggleTheme()" class="p-2 rounded-full bg-white/10 hover:bg-white/20 transition">
+                    <template x-if="darkMode">
+                        <svg class="h-5 w-5 text-yellow-300" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4.243 3.05a1 1 0 011.414 0l.707.707a1 1 0 01-1.414 1.414l-.707-.707a1 1 0 010-1.414zM17 10a1 1 0 011-1h1a1 1 0 110 2h-1a1 1 0 01-1-1zM14.243 16.95a1 1 0 011.414-1.414l.707.707a1 1 0 11-1.414 1.414l-.707-.707a1 1 0 010-1.414zM10 17a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.757 16.95a1 1 0 010-1.414l.707-.707a1 1 0 011.414 1.414l-.707.707a1 1 0 01-1.414 0zM3 10a1 1 0 011-1h1a1 1 0 110 2H4a1 1 0 01-1-1zM5.757 5.05a1 1 0 011.414 0l.707.707a1 1 0 01-1.414 1.414l-.707-.707a1 1 0 010-1.414zM10 8a2 2 0 100 4 2 2 0 000-4z" clip-rule="evenodd" />
+                        </svg>
+                    </template>
+                    <template x-if="!darkMode">
+                        <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+                        </svg>
+                    </template>
+                </button>
+
+                <a href="{{ route('admin.profileadmin') }}" class="flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-full border border-white/20 hover:bg-white/20 transition">
+                    <div class="w-6 h-6 bg-blue-500 flex items-center justify-center rounded-full text-[10px] font-bold">
+                        {{ strtoupper(substr(Auth::user()->name, 0, 1)) }}
+                    </div>
+                    <span class="text-sm font-semibold">{{ Auth::user()->name }}</span>
+                </a>
+
+                <form method="POST" action="{{ route('logout') }}" class="m-0">
+                    @csrf
+                    <button type="submit" class="bg-red-500 hover:bg-red-600 px-4 py-1.5 rounded-lg text-sm font-bold transition shadow-sm">
+                        Logout
+                    </button>
+                </form>
+            </div>
+        </header>
+
+        <main class="p-6">
+            @yield('content')
+        </main>
+    </div>
+</div>
+
+<script>
+function themeManager() {
+    return {
+        sidebarOpen: false,
+        darkMode: false,
+        openMenu: null,
+        lockedMenu: null,
+
+        initTheme() {
+            this.darkMode = localStorage.getItem('theme') === 'dark' || 
+                           (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            this.applyTheme();
+
+            @if(request()->routeIs('admin.dashboard') || request()->routeIs('admin.hasil') || request()->routeIs('admin.monitoring') || request()->routeIs('master.index'))
+                this.lockedMenu = 'spbe_group';
+                this.openMenu = 'spbe_group';
+            @endif
+        },
+
+        toggleTheme() {
+            this.darkMode = !this.darkMode;
+            localStorage.setItem('theme', this.darkMode ? 'dark' : 'light');
+            this.applyTheme();
+        },
+
+        applyTheme() {
+            if (this.darkMode) document.documentElement.classList.add('dark');
+            else document.documentElement.classList.remove('dark');
+        },
+
+        handleHover(menu) {
+            if (!this.lockedMenu) {
+                this.openMenu = menu;
+            }
+        },
+
+        handleLeave() {
+            this.openMenu = this.lockedMenu;
+        },
+
+        handleToggle(menu) {
+            if (this.lockedMenu === menu) {
+                this.lockedMenu = null;
+                this.openMenu = null;
+            } else {
+                this.lockedMenu = menu;
+                this.openMenu = menu;
+            }
+        }
+    }
+}
+</script>
+
+</body>
+</html>
