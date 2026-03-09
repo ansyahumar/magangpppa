@@ -99,8 +99,7 @@
              x-transition:enter-start="opacity-0 scale-98"
              x-transition:enter-end="opacity-100 scale-100"
              class="px-6 py-6">
-            <form action="{{ route('kriteria.store') }}" method="POST">
-                @csrf
+<form :action="mode === 'edit' ? `/admin/kriteria/${editId}/update` : '{{ route('kriteria.store') }}'" method="POST">                @csrf
                 <template x-if="mode === 'edit'">
                     <input type="hidden" name="_method" value="PUT">
                 </template>
