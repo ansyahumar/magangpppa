@@ -336,21 +336,27 @@ public function storeIndikator(Request $request)
 public function updateIndikator(Request $request, $id)
 {
     $request->validate([
-        'id_aspek'        => 'required|exists:aspek,id_aspek',
-        'nomor_indikator' => 'required|numeric',
-        'nama_indikator'  => 'required'
+        'id_aspek'       => 'required|exists:aspek,id_aspek',
+        'nama_indikator' => 'required'
     ]);
 
-    $indikator = Indikator::findOrFail($id);
-    $aspek = DB::table('aspek')->where('id_aspek', $request->id_aspek)->first();
-    $indikator->update([
-        'id_aspek'        => $request->id_aspek,
-        'nomor_indikator' => $request->nomor_indikator,
-        'nama_indikator'  => $request->nama_indikator,
-        'tahun'           => $aspek->tahun ?? $indikator->tahun
-    ]);
+    try {
+        $indikator = Indikator::findOrFail($id);
+        
+        $aspek = DB::table('aspek')->where('id_aspek', $request->id_aspek)->first();
 
-    return back()->with('success', 'Indikator berhasil diperbarui.');
+        $indikator->update([
+            'id_aspek'       => $request->id_aspek,
+            'nama_indikator' => $request->nama_indikator,
+            'nomor_indikator' => $request->nomor_indikator ?? $indikator->nomor_indikator,
+            'tahun'          => $aspek->tahun ?? $indikator->tahun
+        ]);
+
+        return back()->with('success', 'Indikator berhasil diperbarui.');
+
+    } catch (\Exception $e) {
+        return back()->with('error', 'Gagal: ' . $e->getMessage());
+    }
 }
 
 public function storeKriteria(Request $request)

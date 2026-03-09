@@ -1,57 +1,41 @@
 <!DOCTYPE html>
-<html lang="id"
-      class="h-full"
-      x-data="themeManager()"
-      x-init="initTheme()">
+<html lang="id" class="h-full" x-data="themeManager()" x-init="initTheme()">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <script>
-        window.csrfToken = "{{ csrf_token() }}";
-    </script>
+    <script>window.csrfToken = "{{ csrf_token() }}";</script>
     <title>@yield('title', 'Admin Panel')</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = { 
             darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        primary: '#D8E90B' 
-                    }
-                }
-            }
+            theme: { extend: { colors: { primary: '#D8E90B' } } }
         }
     </script>
 
     <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
 
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+
+    <script src="https://cdn.ckeditor.com/ckeditor5/39.0.1/classic/ckeditor.js"></script>
+
     <style>
         [x-cloak] { display: none !important; }
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 10px; }
+        
+        /* CKEditor Custom Styles */
+        .ck-editor__editable { min-height: 200px !important; max-height: 400px !important; }
+        .ck.ck-editor { width: 100% !important; }
+        .ck-editor__editable_inline { min-height: 200px; color: black !important; }
+        .ck-body-wrapper { z-index: 9999; }
+        
+        .content-preview table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+        .content-preview table td, .content-preview table th { border: 1px solid #ddd; padding: 8px; }
     </style>
-    <script src="https://cdn.ckeditor.com/ckeditor5/39.0.1/classic/ckeditor.js"></script>
-<style>
-    .ck-editor__editable { min-height: 200px !important; max-height: 400px !important; }
-    .ck.ck-editor { width: 100% !important; }
-    .content-preview table { border-collapse: collapse; width: 100%; margin: 10px 0; }
-    .content-preview table td, .content-preview table th { border: 1px solid #ddd; padding: 8px; }
-</style>
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
-<script src="https://cdn.ckeditor.com/ckeditor5/39.0.1/classic/ckeditor.js"></script>
-<style>
-    .ck-editor__editable_inline {
-        min-height: 200px;
-        color: black !important; 
-    }
-    .ck-body-wrapper {
-        z-index: 9999;
-    }
-</style>
 </head>
 
 <body class="h-full bg-gray-100 dark:bg-gray-900 transition-colors duration-300">

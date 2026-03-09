@@ -1,4 +1,3 @@
-<script src="https://cdn.ckeditor.com/ckeditor5/39.0.1/classic/ckeditor.js"></script>
 
 <style>
 
@@ -116,42 +115,41 @@
                 </div>
             </div>
 
-            <div x-show="mode === 'edit'" 
-                 x-transition:enter="transition duration-100"
-                 x-transition:enter-start="opacity-0"
-                 x-transition:enter-end="opacity-100"
-                 class="p-6" x-cloak>
-                
-               <form id="formPenjelasanAdmin" method="POST" :action="'/penjelasan/' + activeIndikator?.id + '/update'">
-    @csrf 
-    @method('PUT')
+<div x-show="mode === 'edit'" x-transition x-cloak class="p-6">
+    <form id="formPenjelasanAdmin" method="POST" :action="'/penjelasan/' + activeIndikator?.id + '/update'">
+        @csrf 
+        @method('PUT')
 
-    <input type="hidden" name="id_indikator" :value="activeIndikator?.id">
-    <input type="hidden" name="tahun" value="{{ date('Y') }}">
+        <input type="hidden" name="id_indikator" :value="activeIndikator?.id">
+        <input type="hidden" name="tahun" value="{{ date('Y') }}">
 
-    <div class="space-y-6">
-        <div>
-            <label>Penjelasan Kriteria</label>
-            <textarea id="editorPenjelasan" name="penjelasan_kriteria"></textarea>
+        <div class="space-y-6 text-left">
+            <div>
+                <label class="block text-xs font-bold uppercase mb-2">Penjelasan Kriteria</label>
+                <div class="rounded-xl overflow-hidden border">
+                    <textarea id="editorPenjelasan" name="penjelasan_kriteria"></textarea>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold uppercase mb-2">Tata Cara Penilaian</label>
+                <div class="rounded-xl overflow-hidden border">
+                    <textarea id="editorTatacara" name="tatacara_penilaian"></textarea>
+                </div>
+            </div>
         </div>
 
-        <div>
-            <label>Tata Cara Penilaian</label>
-            <textarea id="editorTatacara" name="tatacara_penilaian"></textarea>
+        <div class="mt-6 flex justify-end gap-3">
+            <button type="button" @click="mode = 'view'" class="px-4 py-2 text-gray-500">Batal</button>
+            <button type="submit" class="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg active:scale-95 transition-all">
+                <i class="fa-solid fa-floppy-disk mr-2"></i> Simpan Data
+            </button>
+        </div>
+    </form>
+</div>
         </div>
     </div>
-
-    <button 
-    type="submit" 
-    class="group relative flex items-center justify-center gap-2 px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 transition-all duration-200 active:scale-95"
->
-    <i class="fa-solid fa-floppy-disk group-hover:rotate-12 transition-transform"></i>
-    
-    <span>Simpan Data</span>
-
-    <div class="absolute inset-0 rounded-xl bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-</button>
-</form>
+</div>
 
 <script>
     function initPenjelasanEditors() {
@@ -182,25 +180,24 @@
         }
     }
 
-    document.addEventListener('submit', function (e) {
-        if (e.target.id === 'formPenjelasanAdmin') {
-            const dataP = window.editorPenjelasanInst ? window.editorPenjelasanInst.getData().trim() : '';
-            const dataT = window.editorTatacaraInst ? window.editorTatacaraInst.getData().trim() : '';
+document.addEventListener('submit', function (e) {
+    if (e.target.id === 'formPenjelasanAdmin') {
+        const dataP = window.editorPenjelasanInst ? window.editorPenjelasanInst.getData() : '';
+        const dataT = window.editorTatacaraInst ? window.editorTatacaraInst.getData() : '';
 
-            if (dataP === '' || dataT === '') {
-                e.preventDefault();
-                Swal.fire({ icon: 'error', title: 'Oops...', text: 'Semua kolom wajib diisi!' });
-                return;
-            }
-
-            document.querySelector('#editorPenjelasan').value = dataP;
-            document.querySelector('#editorTatacara').value = dataT;
-            
-            Swal.fire({ 
-                title: 'Sedang menyimpan...', 
-                allowOutsideClick: false,
-                didOpen: () => Swal.showLoading() 
-            });
+        if (!dataP.trim() || !dataT.trim()) {
+            e.preventDefault();
+            Swal.fire({ icon: 'error', title: 'Oops...', text: 'Semua kolom wajib diisi!' });
+            return;
         }
-    });
+
+        document.querySelector('#editorPenjelasan').value = dataP;
+        document.querySelector('#editorTatacara').value = dataT;
+        Swal.fire({ 
+            title: 'Sedang menyimpan...', 
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading() 
+        });
+    }
+});
 </script>
