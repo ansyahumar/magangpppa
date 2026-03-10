@@ -159,4 +159,15 @@ Route::get('/view-bukti/{file}', function ($file) {
     return response()->file($path);
 });
 
+Route::get('/dashboard-redirect', function () {
+    $role = strtolower(auth::user()->role);
+    return match($role) {
+        'admin'       => redirect()->route('admin.dashboard'),
+        'verifikator' => redirect()->route('verifikator.verifikasi'),
+        'p2'          => redirect()->route('p2.dashboard'),
+        'p1'          => redirect()->route('p1.nilai'),
+        default       => redirect()->route('dashboard'),
+    };
+})->name('dashboard.redirect');
+
 require __DIR__.'/auth.php';

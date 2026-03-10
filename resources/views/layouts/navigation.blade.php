@@ -4,13 +4,26 @@
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between items-center h-16">
 
-            <!-- LEFT : LOGO -->
-            <div class="flex items-center gap-3">
-                <a href="{{ route('dashboard') }}" class="flex items-center gap-2">
-                    <x-application-logo class="h-9 w-auto fill-current text-white" />
+           
+           <div class="flex items-center gap-3">
+    @php
+        
+        $role = strtolower(Auth::user()->role); 
+        
+        
+        $url = match($role) {
+            'admin'       => route('admin.dashboard'),
+            'verifikator' => route('verifikator.verifikasi'),
+            'p2'          => route('p2.dashboard'),
+            'p1'          => route('p1.nilai'), 
+            default       => route('dashboard'), 
+        };
+    @endphp
 
-                </a>
-            </div>
+    <a href="{{ $url }}" class="flex items-center gap-2">
+        <x-application-logo class="h-9 w-auto fill-current text-white" />
+    </a>
+</div>
 
         
             <div class="hidden sm:flex items-center gap-4">
