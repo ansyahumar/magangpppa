@@ -59,10 +59,10 @@
         </form>
     </div>
 
-    <div class="executive-card card-accent-blue p-8" onclick="openChartModal('Trend Indeks SPBE', 'mixed')">
+    <div class="executive-card card-accent-blue p-8" onclick="openChartModal('Indeks SPBE', 'mixed')">
         <div class="flex items-center gap-3 mb-6">
             <div class="p-2 bg-blue-50 text-blue-700 rounded-lg"><i class="fa-solid fa-chart-line"></i></div>
-            <h3 class="text-lg font-bold text-slate-800 dark:text-white uppercase tracking-wide">Analisis Tren Tahunan</h3>
+            <h3 class="text-lg font-bold text-slate-800 dark:text-white uppercase tracking-wide">indeks SPBE</h3>
         </div>
         <div class="h-[350px]"><canvas id="mixedChart"></canvas></div>
     </div>

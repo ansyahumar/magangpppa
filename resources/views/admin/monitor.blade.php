@@ -64,9 +64,9 @@
     @forelse($domains as $indexDomain => $d)
         <div class="mb-12">
             <div class="flex items-center gap-3 mb-6 bg-blue-50 dark:bg-blue-900/20 p-4 rounded-2xl border-l-8 border-blue-600">
-                <span class="text-2xl font-black text-blue-600">{{ $indexDomain + 1 }}.</span>
+                <span class="text-2xl font-black text-blue-600">Domain {{ $indexDomain + 1 }} :</span>
                 <h3 class="text-xl font-extrabold uppercase tracking-tight text-gray-800 dark:text-gray-200">
-                    Domain: {{ $d->nama_domain }}
+                     {{ $d->nama_domain }}
                 </h3>
             </div>
             
@@ -75,7 +75,7 @@
                     <div class="flex items-center gap-2 mb-4">
                         <div class="h-1 w-6 bg-gray-300 rounded"></div>
                         <h4 class="text-sm font-bold text-gray-600 dark:text-gray-400 uppercase tracking-widest">
-                            Aspek: {{ $a->nama_aspek }}
+                            Aspek : {{ $a->nama_aspek }}
                         </h4>
                     </div>
 

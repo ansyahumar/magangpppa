@@ -171,9 +171,9 @@ collapseAll() {
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"/></svg>
                 </div>
 
-                <span class="nomor-domain-badge flex-shrink-0 w-9 h-9 bg-blue-600 text-white flex items-center justify-center rounded-lg text-sm font-black shadow-sm">
-                    {{ $loop->iteration }}
-                </span>
+                <span class="flex h-9 w-auto flex-shrink-0 items-center justify-center rounded-lg bg-blue-600 px-3 text-sm font-black text-white shadow-sm">
+    DOMAIN {{ $loop->iteration }}
+</span>
 
                 <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100 uppercase tracking-tight group-hover:text-blue-600 transition-colors">
                     {{ $d->nama_domain }}
@@ -205,9 +205,9 @@ collapseAll() {
                         <div class="flex items-center gap-3">
                             <div @click.stop class="drag-handle cursor-move text-gray-300">⠿</div>
 
-                            <span class="nomor-aspek-badge w-7 h-7 bg-emerald-500 text-white flex items-center justify-center rounded-md text-[10px] font-bold">
-                                {{ $globalAspekCount++ }}
-                            </span>
+                            <span class="flex h-7 w-fit min-w-[1.75rem] items-center justify-center rounded-md bg-emerald-500 px-2 text-[10px] font-bold text-white shadow-sm">
+    ASPEK {{ $globalAspekCount++ }}
+</span>
 
                             <div>
                                 <h4 class="font-bold text-gray-800 dark:text-gray-200 group-hover/aspek:text-blue-600 transition-colors">{{ $a->nama_aspek }}</h4>
@@ -230,9 +230,9 @@ collapseAll() {
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
         
         <div class="flex gap-3 items-center">
-            <span class="nomor-indikator-badge flex-shrink-0 w-8 h-8 bg-blue-50 text-blue-600 flex items-center justify-center rounded-lg text-sm font-black">
-                {{ $globalIndikatorCount++ }}
-            </span>
+            <span class="flex h-8 w-fit flex-shrink-0 items-center justify-center rounded-lg bg-blue-50 px-3 text-xs font-black text-blue-600">
+    INDIKATOR {{ $globalIndikatorCount++ }}
+</span>
             <span class="text-gray-800 dark:text-gray-100 text-sm font-medium leading-relaxed">
                 {{ $i->nama_indikator }}
             </span>
