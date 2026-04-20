@@ -27,7 +27,6 @@
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 10px; }
         
-        /* CKEditor Custom Styles */
         .ck-editor__editable { min-height: 200px !important; max-height: 400px !important; }
         .ck.ck-editor { width: 100% !important; }
         .ck-editor__editable_inline { min-height: 200px; color: black !important; }

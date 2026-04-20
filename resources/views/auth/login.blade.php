@@ -1,10 +1,9 @@
 <x-guest-layout>
 
-    <div class="fixed inset-0 -z-10 h-full w-full bg-no-repeat bg-cover bg-center" 
-         style="background-image: url('{{ asset('images/background.svg') }}'); pointer-events: none;">
+    <div class="fixed inset-0 -z-10 h-full w-full bg-gradient-to-br from-blue-50 to-gray-100 dark:from-gray-900 dark:to-gray-800" 
+         style="pointer-events: none;">
     </div>
 
-    
     @if ($errors->any())
         <div class="mb-4 p-4 bg-red-50 border-l-4 border-red-500 rounded-md">
             <ul class="list-disc list-inside text-xs text-red-600 font-bold">

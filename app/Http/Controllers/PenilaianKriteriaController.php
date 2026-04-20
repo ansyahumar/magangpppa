@@ -31,51 +31,52 @@ public function show(Request $request, $id_indikator)
         $allRelatedIndikatorIds = DB::table('indikator')
             ->where('nomor_indikator', $currentIndikator->nomor_indikator)
             ->pluck('id_indikator');
-
+        $tahunHistoriTujuan = (int)$tahunAktif - 1;
         $historiData = DB::table('penilaian_kriteria')
-            ->join('kriteria', 'penilaian_kriteria.id_kriteria', '=', 'kriteria.id_kriteria')
-            ->whereIn('penilaian_kriteria.id_indikator', $allRelatedIndikatorIds)
-            ->where('penilaian_kriteria.tahun', '<', $tahunAktif)
-            ->select('penilaian_kriteria.*', 'kriteria.nama_kriteria')
-            ->orderBy('penilaian_kriteria.tahun', 'desc')
-            ->get()
-            ->groupBy('nama_kriteria');
+    ->join('kriteria', 'penilaian_kriteria.id_kriteria', '=', 'kriteria.id_kriteria')
+    ->whereIn('penilaian_kriteria.id_indikator', $allRelatedIndikatorIds)
+    ->where('penilaian_kriteria.tahun', '=', $tahunHistoriTujuan) 
+    ->select('penilaian_kriteria.*', 'kriteria.nama_kriteria')
+    ->get()
+    ->groupBy('nama_kriteria');
 
         $penilaianAktif = DB::table('penilaian_kriteria')
             ->where('id_indikator', $id_indikator)
             ->where('tahun', $tahunAktif)
+            ->first(); 
+
+        $userRole = auth::user()->role;
+
+        $kriteria = DB::table('kriteria')
+            ->where('id_indikator', $id_indikator)
             ->get()
-            ->keyBy('id_kriteria');
-
-      $kriteria = DB::table('kriteria')
-    ->where('id_indikator', $id_indikator)
-    ->get()
-    ->map(function ($k) use ($tahunAktif, $historiData, $penilaianAktif) {
-        $histori = isset($historiData[$k->nama_kriteria]) ? $historiData[$k->nama_kriteria]->first() : null;
-
-        $nilaiPrev = 0;
+            ->map(function ($k) use ($penilaianAktif, $userRole, $historiData) {
+                
+            $histori = isset($historiData[$k->nama_kriteria]) ? $historiData[$k->nama_kriteria]->first() : null;
+            $nilaiPrev = 0;
         if ($histori) {
-            if (!empty($histori->nilai_verifikator_internal)) {
-                $nilaiPrev = $histori->nilai_verifikator_internal;
-            } else {
-                $nilaiPrev = $histori->nilai_asesor_internal ?? 0;
-            }
+            $nilaiPrev = $histori->nilai_verifikator_internal ?: $histori->nilai_asesor_internal ?: 0;
         }
 
-        $aktif = $penilaianAktif[$k->id_kriteria] ?? null;
+                $nilaiTargetVisible = null;
+                if ($penilaianAktif) {
+                    if ($penilaianAktif->status_target === 'verified' || in_array($userRole, ['p2', 'koordinator', 'admin'])) {
+                        $nilaiTargetVisible = $penilaianAktif->nilai_target;
+                    }
+                }
 
-        return [
-            'id_kriteria'                => $k->id_kriteria,
-            'nama_kriteria'              => $k->nama_kriteria,
-            'nilai_target'               => $aktif ? $aktif->nilai_target : null,
-            'nilai_asesor_internal'      => $aktif ? $aktif->nilai_asesor_internal : null,
-            'nilai_verifikator_internal' => $aktif ? $aktif->nilai_verifikator_internal : null,
-            'nilai_asesor_external'      => $aktif ? $aktif->nilai_asesor_external : null, 
-            'nilai_akhir_external'       => $aktif ? $aktif->nilai_akhir_external : null,  
-            'nilai_histori'              => (float) $nilaiPrev,
-            'nilai_display'              => $aktif ? ($aktif->nilai_verifikator_internal ?: $aktif->nilai_asesor_internal ?: 0) : 0
-        ];
-    });
+                return [
+                    'id_kriteria'                => $k->id_kriteria,
+                    'nama_kriteria'              => $k->nama_kriteria,
+                    'nilai_target'               => $nilaiTargetVisible,
+                    'nilai_asesor_internal'      => $penilaianAktif ? $penilaianAktif->nilai_asesor_internal : null,
+                    'nilai_verifikator_internal' => $penilaianAktif ? $penilaianAktif->nilai_verifikator_internal : null,
+                    'nilai_asesor_external'      => $penilaianAktif ? $penilaianAktif->nilai_asesor_external : null, 
+                    'nilai_akhir_external'       => $penilaianAktif ? $penilaianAktif->nilai_akhir_external : null,  
+                    'nilai_histori'              => (float) $nilaiPrev,
+                    'status_target'              => $penilaianAktif ? $penilaianAktif->status_target : null,
+                ];
+            });
 
         $catatan = DB::table('catatan_kriteria')
             ->where([
@@ -100,16 +101,17 @@ public function show(Request $request, $id_indikator)
             ])
             ->exists();
 
-        $tahunHistoriLabel = $historiData->flatten()->max('tahun') ?? ($tahunAktif - 1);
+        $statusTargetRoot = $penilaianAktif ? $penilaianAktif->status_target : null;
 
-        return response()->json([
+return response()->json([
             'detail'        => $detailIndikator,
             'tahun_aktif'   => (int) $tahunAktif,
-            'tahun_histori' => (int) $tahunHistoriLabel,
+            'tahun_histori' => (int) ($tahunAktif - 1),
             'kriteria'      => $kriteria,
             'catatan'       => $catatan ? [$catatan] : [],
             'logs'          => $logs,
-            'mode'          => $is_final ? 'histori' : 'input'
+            'mode'          => $is_final ? 'histori' : 'input',
+            'status_target' => $penilaianAktif ? $penilaianAktif->status_target : null,
         ]);
 
     } catch (\Exception $e) {
@@ -128,8 +130,15 @@ public function store(Request $request)
     $catatanData = json_decode($request->input('catatan'), true) ?? [];
     $kriteriaData = json_decode($request->input('kriteria'), true) ?? [];
     $pencapaianInput = $request->input('pencapaian');
-
+    
     try {
+        $isLockedUnit = DB::table('penilaian_kriteria')
+    ->where(['id_indikator' => $id_indikator, 'tahun' => $tahun, 'status' => 'final'])
+    ->exists();
+
+if ($isLockedUnit && $user->role === 'user') {
+    throw new \Exception('Indikator ini sudah Anda finalisasi dan tidak dapat diubah.');
+}
         DB::beginTransaction();
         if (empty($kriteriaData)) {
         throw new \Exception('Data kriteria tidak ditemukan.');
@@ -169,7 +178,7 @@ public function store(Request $request)
             elseif ($user->role === 'p2') {
                 $updateData['nilai_target'] = $data['nilai_target'];
                 $updateData['id_kriteria'] = $data['kriteria_id'];
-                $updateData['status'] = 'draft';
+                $updateData['status_target'] = '';
             }
 
             if ($existingRow) {

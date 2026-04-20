@@ -12,6 +12,7 @@ class VerifikasiController extends Controller
 public function index(Request $request)
 {
     $tahunSelesaiAsesor = DB::table('penilaian_kriteria')
+        ->where('status', 'final')
         ->whereNotNull('nilai_asesor_internal')
         ->where('nilai_asesor_internal', '>', 0)
         ->select(columns: 'tahun')
@@ -27,6 +28,7 @@ public function listPenilaian($tahun)
      $cekAsesor = DB::table('penilaian_kriteria')
         ->where('tahun', $tahun)
         ->whereNotNull('nilai_asesor_internal')
+        ->where('status', 'final')
         ->exists();
 
     if (!$cekAsesor) {
@@ -43,6 +45,10 @@ public function listPenilaian($tahun)
         ->orderBy('urutan', 'asc')
         ->get();
     
+$statusPenilaian = DB::table('penilaian_kriteria')
+        ->where('tahun', $tahun)
+        ->value('status_vrifU') ?? 'draft'; 
+
     $draft = DB::table('penilaian_kriteria')
         ->select('id_indikator', DB::raw('MAX(nilai_verifikator_internal) as nilai_verifikator_internal'))
         ->where('tahun', $tahun)
@@ -50,7 +56,24 @@ public function listPenilaian($tahun)
         ->get()
         ->keyBy('id_indikator');
 
-    return view('verifikator.form_verifikasi', compact('domains', 'tahun', 'draft'));
+    return view('verifikator.form_verifikasi', compact('domains', 'tahun', 'draft', 'statusPenilaian'));
 }
+public function finalisasi_verifikator(Request $request)
+{
+    $tahun = $request->tahun;
+    
+    try {
+        DB::beginTransaction();
 
+        DB::table('penilaian_kriteria')
+            ->where('tahun', $tahun)
+            ->update(['status_vrifU' => 'final']);
+
+        DB::commit();
+        return redirect()->back()->with('success', 'Data verifikasi berhasil difinalisasi dan dikunci.');
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return redirect()->back()->with('error', 'Gagal finalisasi: ' . $e->getMessage());
+    }
+}
 }

@@ -1,6 +1,5 @@
 @extends('admin.layouts.app')
-    <link rel="icon" type="image/x-icon"
-      href="https://siga.kemenpppa.go.id/themes/sigabn/assets/images/favicon.ico">
+@include('layouts.fav')
     <title>Monitoring</title>
 @section('content')
 <div class="max-w-full mx-auto px-2 sm:px-6 py-6">
@@ -28,31 +27,50 @@
         </div>
         <div class="h-8 w-[1px] bg-gray-200 dark:bg-gray-700"></div>
 
-        @php
-            $totalNilai = \DB::table('penilaian_kriteria')
-                ->where('tahun', $tahun)
-                ->sum('nilai_akhir_external');
+@php
+    $tahunAktif = request('tahun', date('Y'));
 
-            $countIndikator = \DB::table('indikator')
-                ->where('tahun', $tahun)
-                ->count();
+    $indikators = \DB::table('indikator')
+        ->where('tahun', $tahunAktif)
+        ->get();
 
-            $nilaiIndeks = $countIndikator > 0 ? ($totalNilai / $countIndikator) : 0;
-            
-            $persenProgres = round(($nilaiIndeks / 5) * 100);
-        @endphp
+    $totalIndikator = $indikators->count() ?: 47;
+    $totalPersenKumulatif = 0;
 
-        <div class="flex items-center gap-3 px-2">
-            <div class="flex flex-col items-end">
-                <span class="text-xs font-black text-blue-600 dark:text-blue-400 leading-none">{{ $persenProgres }}%</span>
-                <span class="text-[9px] uppercase font-bold text-gray-400 tracking-tighter">Progress</span>
-            </div>
-            <div class="w-12 h-1.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden border border-gray-200/50">
-                <div class="h-full bg-gradient-to-r from-blue-500 to-indigo-600 transition-all duration-1000" 
-                     style="width: {{ $persenProgres }}%">
-                </div>
-            </div>
+    foreach ($indikators as $ind) {
+        $penilaian = \DB::table('penilaian_kriteria')
+            ->where('id_indikator', $ind->id_indikator)
+            ->where('tahun', $tahunAktif)
+            ->first();
+
+        if ($penilaian) {
+            $point = 0;
+            if (!is_null($penilaian->nilai_asesor_internal)) $point++;
+            if (!is_null($penilaian->nilai_verifikator_internal)) $point++;
+            if (!is_null($penilaian->nilai_asesor_external)) $point++;
+            if (!is_null($penilaian->nilai_akhir_external)) $point++;
+
+            $persenIndikator = ($point / 4) * 100;
+            $totalPersenKumulatif += $persenIndikator;
+        }
+    }
+
+    $persenProgres = round($totalPersenKumulatif / $totalIndikator);
+@endphp
+
+<div class="flex items-center gap-3 px-2">
+    <div class="flex flex-col items-end">
+        <span class="text-xs font-black text-blue-600 dark:text-blue-400 leading-none">
+            {{ $persenProgres }}%
+        </span>
+        <span class="text-[9px] uppercase font-bold text-gray-400 tracking-tighter">Progress Penilaian</span>
+    </div>
+    <div class="w-12 h-1.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden border border-gray-200/50">
+        <div class="h-full bg-gradient-to-r from-blue-500 to-indigo-600 transition-all duration-1000" 
+             style="width: {{ $persenProgres }}%">
         </div>
+    </div>
+</div>
     </div>
 </form>
     </div>
@@ -109,12 +127,12 @@
     </button>
 </td>
                                             
-                                            <td class="text-center border-r font-bold text-amber-600 italic">{{ $val->nilai_target ?? '-' }}</td>
-                                            <td class="text-center border-r font-bold text-blue-600">{{ $val->nilai_asesor_internal ?? '-' }}</td>
-                                            <td class="text-center border-r font-bold text-blue-800">{{ $val->nilai_verifikator_internal ?? '-' }}</td>
-                                            <td class="text-center border-r font-bold text-emerald-600">{{ $val->nilai_asesor_external ?? '-' }}</td>
-                                            <td class="text-center font-black text-emerald-900 bg-emerald-50/30 text-base">{{ $val->nilai_akhir_external ?? '-' }}</td>
-                                        </tr>
+<td class="text-center border-r font-bold text-amber-600 italic">
+    {{ (isset($val->status_target) && $val->status_target === 'verified') ? $val->nilai_target : '-' }}
+</td><td class="text-center border-r font-bold text-blue-600">{{ (int)($val->nilai_asesor_internal ?? 0) ?: '-' }}</td>
+<td class="text-center border-r font-bold text-blue-800">{{ (int)($val->nilai_verifikator_internal ?? 0) ?: '-' }}</td>
+<td class="text-center border-r font-bold text-emerald-600">{{ (int)($val->nilai_asesor_external ?? 0) ?: '-' }}</td>
+<td class="text-center font-black text-emerald-900 bg-emerald-50/30 text-base">{{ (int)($val->nilai_akhir_external ?? 0) ?: '-' }}</td>                                        </tr>
                                     @endforeach
                                 </tbody>
                             </table>
@@ -190,6 +208,44 @@ function confirmEx() {
             });
             document.getElementById('form-finalisasi-ex').submit();
         }
+    });
+}
+
+function copyToClipboard(elementId, isInput = false) {
+    const element = document.getElementById(elementId);
+    let text = "";
+
+    if (isInput) {
+        text = element.value;
+    } else {
+        text = element.innerText;
+    }
+
+    if (!text || text.includes('Tidak ada catatan') || text.includes('Belum ada analisis')) {
+        return Swal.fire({
+            icon: 'info',
+            title: 'Kosong',
+            text: 'Tidak ada teks untuk disalin',
+            timer: 1000,
+            showConfirmButton: false
+        });
+    }
+
+    navigator.clipboard.writeText(text).then(() => {
+        const Toast = Swal.mixin({
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 2000,
+            timerProgressBar: true,
+        });
+
+        Toast.fire({
+            icon: 'success',
+            title: 'Teks berhasil disalin!'
+        });
+    }).catch(err => {
+        console.error('Gagal menyalin: ', err);
     });
 }
 </script>
@@ -328,16 +384,17 @@ function renderUI(data, isExternalFilled, nomorUrut) {
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100 bg-white">`;
-
-    kriteriaList.forEach((k, i) => {
+kriteriaList.forEach((k, i) => {
         const level = (i % 5) + 1;
         const disAdmin = isExternalFilled ? 'disabled' : '';
-        const isCheckedHistori  = (Number(gHistori) === level) ? 'checked' : '';
-        const isCheckedTarget   = (Number(gTarget) === level) ? 'checked' : '';
-        const isCheckedAsesorIn = (Number(gAsesorIn) === level) ? 'checked' : '';
-        const isCheckedVerifIn  = (Number(gVerifIn) === level) ? 'checked' : '';
-        const isCheckedAsesorEx = (Number(gAsesorEx) === level) ? 'checked' : '';
-        const isCheckedAkhirEx  = (Number(gAkhirEx) === level) ? 'checked' : '';
+        const isVerified = (k.status_target === 'verified');
+        const nilaiPrioritas = k.nilai_histori;
+        const isCheckedTarget = (isVerified && Number(k.nilai_target) === level) ? 'checked' : '';
+        const isCheckedHistori  = (Number(k.nilai_histori) === level) ? 'checked' : '';
+        const isCheckedAsesorIn = (Number(k.nilai_asesor_internal) === level) ? 'checked' : '';
+        const isCheckedVerifIn  = (Number(k.nilai_verifikator_internal) === level) ? 'checked' : '';
+        const isCheckedAsesorEx = (Number(k.nilai_asesor_external) === level) ? 'checked' : '';
+        const isCheckedAkhirEx  = (Number(k.nilai_akhir_external) === level) ? 'checked' : '';
 
         html += `
             <tr class="hover:bg-blue-50/30 transition-colors text-left text-xs">
@@ -347,8 +404,9 @@ function renderUI(data, isExternalFilled, nomorUrut) {
                 <td class="text-center border-r bg-gray-50/30">
                     <input type="checkbox" ${isCheckedHistori} disabled class="rounded w-4 h-4">
                 </td>
-                <td class="text-center border-r">
-                    <input type="checkbox" ${isCheckedTarget} disabled class="rounded w-4 h-4 text-amber-500">
+                
+                <td class="text-center border-r ${isVerified ? 'bg-green-50/50' : 'bg-amber-50/30'}">
+                    <input type="checkbox" ${isCheckedTarget} disabled class="rounded w-4 h-4 ${isVerified ? 'text-green-600' : 'text-amber-500'}">
                 </td>
                 <td class="text-center border-r">
                     <input type="checkbox" ${isCheckedAsesorIn} disabled class="rounded w-4 h-4 text-blue-300">
@@ -376,17 +434,17 @@ function renderUI(data, isExternalFilled, nomorUrut) {
         <h4 class="font-bold text-gray-800 mb-6 flex items-center gap-2 underline italic uppercase text-[10px]">
             <i class="fa-solid fa-circle-info text-blue-500"></i> Rekapitulasi Informasi Pendukung (Read-Only)
         </h4>
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div class="space-y-4">
-                <div>
-                    <label class="text-[10px] font-bold text-blue-600 uppercase tracking-widest block mb-2">
-                        <i class="fa-solid fa-user-pen mr-1"></i> Catatan Asesor Internal
-                    </label>
-                    <div class="text-xs text-gray-700 bg-white p-4 rounded-xl border border-blue-100 min-h-[80px] shadow-sm italic leading-relaxed">
-                        ${cat.nama_catatankriteria || 'Tidak ada catatan asesor.'}
-                    </div>
-                </div>
+<div class="flex justify-between items-center mb-2">
+    <label class="text-[10px] font-bold text-blue-600 uppercase tracking-widest">
+        <i class="fa-solid fa-user-pen mr-1"></i> Catatan Asesor Internal
+    </label>
+    <button onclick="copyToClipboard('catatan-internal-text')" class="text-[9px] bg-blue-100 text-blue-600 px-2 py-1 rounded hover:bg-blue-200 transition-colors">
+        <i class="fa-regular fa-copy"></i> Copy
+    </button>
+</div>
+<div id="catatan-internal-text" class="text-xs text-gray-700 bg-white p-4 rounded-xl border border-blue-100 min-h-[80px] shadow-sm italic leading-relaxed">
+    ${cat.nama_catatankriteria || 'Tidak ada catatan asesor.'}
+</div>
 
                 <div>
                     <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Lampiran Bukti (File & Link)</label>
@@ -445,18 +503,26 @@ if (buktiArray.length > 0) {
             </div>
 
             <div class="space-y-4">
-                <div>
-                    <label class="text-[10px] font-bold text-emerald-600 uppercase tracking-widest block mb-2">
-                        <i class="fa-solid fa-user-check mr-1"></i> Analisis Pencapaian (Verifikator)
-                    </label>
-                    <div class="text-xs text-gray-700 bg-emerald-50/30 p-4 rounded-xl border border-emerald-100 min-h-[80px] shadow-sm leading-relaxed">
-                        ${cat.pencapaian || '<span class="text-gray-400 italic">Belum ada analisis dari verifikator.</span>'}
-                    </div>
+               <div class="flex justify-between items-center mb-2">
+    <label class="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">
+        <i class="fa-solid fa-user-check mr-1"></i> Analisis Pencapaian (Verifikator)
+    </label>
+    <button onclick="copyToClipboard('analisis-pencapaian-text')" class="text-[9px] bg-emerald-100 text-emerald-600 px-2 py-1 rounded hover:bg-emerald-200 transition-colors">
+        <i class="fa-regular fa-copy"></i> Copy
+    </button>
+</div>
+<div id="analisis-pencapaian-text" class="text-xs text-gray-700 bg-emerald-50/30 p-4 rounded-xl border border-emerald-100 min-h-[80px] shadow-sm leading-relaxed">
+    ${cat.pencapaian || 'Belum ada analisis dari verifikator.'}
+</div>
                 </div>
-                <div>
-        <label class="text-[10px] font-bold text-emerald-700 uppercase tracking-widest block mb-2">
-            <i class="fa-solid fa-comment-dots mr-1"></i> Catatan Eksternal (Admin)
-        </label>
+               <div class="flex justify-between items-center mb-2">
+    <label class="text-[10px] font-bold text-emerald-700 uppercase tracking-widest">
+        <i class="fa-solid fa-comment-dots mr-1"></i> Catatan Eksternal (Admin)
+    </label>
+    <button onclick="copyToClipboard('input-catatan-external', true)" class="text-[9px] bg-emerald-100 text-emerald-700 px-2 py-1 rounded hover:bg-emerald-200 transition-colors">
+        <i class="fa-regular fa-copy"></i> Copy
+    </button>
+</div>
         <textarea id="input-catatan-external" 
             class="w-full text-xs text-gray-700 bg-white p-4 rounded-xl border border-emerald-200 focus:ring-emerald-500 focus:border-emerald-500 min-h-[100px] shadow-sm leading-relaxed"
             placeholder="Tambahkan catatan penilaian eksternal di sini..."

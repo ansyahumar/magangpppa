@@ -6,7 +6,7 @@
         <div>
             <h2 class="text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight">
                 Form Penilaian SPBE 
-                @if(Auth::user()->role === 'p2') <span class="text-amber-600">(Target P2)</span> @endif
+                @if(Auth::user()->role === 'p2') <span class="text-amber-600">(Target SPBE)</span> @endif
             </h2>
         </div>
         <form method="get" action="{{ route('p2.target') }}" class="bg-white dark:bg-gray-800 p-2 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
@@ -168,7 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function showModal(indikatorId, nomorUrut) {
         activeIndikatorId = indikatorId;
         const tahunAktifVal = selectTahun.value || new Date().getFullYear();
-
+        
         modal.classList.remove('hidden');
         content.innerHTML = '<div class="flex justify-center py-12"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>';
         saveBtn.classList.add('hidden');
@@ -186,27 +186,28 @@ document.addEventListener('DOMContentLoaded', () => {
             const isP2Filled = data.kriteria.some(k => k.nilai_target != null && k.nilai_target != 0);
             const isAsesorFilled = data.kriteria.some(k => k.nilai_asesor_internal != null && k.nilai_asesor_internal != 0);
             const isVerifFilled = data.kriteria.some(k => k.nilai_verifikator_internal != null && k.nilai_verifikator_internal != 0);
+            const historiRow = data.kriteria.find(k => k.nilai_histori > 0);
+            const nilaiHistoriTahunLalu = historiRow ? parseFloat(historiRow.nilai_histori) : 0;
+            const isFinalized = {{ $isFinalized ? 'true' : 'false' }};
 
-            if (userRole === 'p2') {
-                if (!isP2Filled) saveBtn.classList.remove('hidden');
-            } else if (userRole === 'verifikator') {
-                if (isModeHistori && !isVerifFilled) saveBtn.classList.remove('hidden');
-            } else if (userRole === 'user') {
-                if (!isModeHistori && !isAsesorFilled) saveBtn.classList.remove('hidden');
-            }
+if (!isFinalized) {
+    saveBtn.classList.remove('hidden');
+} else {
+    saveBtn.classList.add('hidden');
+}
 
-            renderUI(data, isModeHistori, isVerifFilled, isP2Filled, isAsesorFilled, nomorUrut);
+           renderUI(data,tahunAktifVal, isModeHistori, isVerifFilled, isP2Filled, isAsesorFilled, nomorUrut, nilaiHistoriTahunLalu);
         } catch (e) {
             Swal.fire('Error', e.message, 'error');
             modal.classList.add('hidden');
         }
     }
 
-    function renderUI(data, isModeHistori, isVerifFilled, isP2Filled, isAsesorFilled, nomorUrut) {
+    function renderUI(data, tahunAktif, isModeHistori, isVerifFilled, isP2Filled, isAsesorFilled, nomorUrut, nilaiHistori){
         const detail = data.detail || { nomor_indikator: '-', nama_indikator: '-' };
         const selectTahun = document.getElementById('global-select-tahun');
-        const tahunHistori = data.tahun_histori || (selectTahun.value - 1);
-        const kriteriaList = data.kriteria || [];
+        const tahunHistoriVal = data.tahun_histori || (parseInt(tahunAktif) - 1);
+         const kriteriaList = data.kriteria || [];
         const cat = (data.catatan && data.catatan.length > 0) ? data.catatan[0] : {id_catatan: 'new', nama_catatankriteria: '', pencapaian: '', bukti: '[]'};
         const isVerifRole = (userRole === 'verifikator');
         const isP2Role = (userRole === 'p2');
@@ -242,8 +243,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         <tr>
                             <th rowspan="3" class="px-4 py-3 border-r w-12 text-center">Lv</th>
                             <th rowspan="3" class="px-4 py-3 border-r min-w-[300px] text-left">Kriteria Penilaian</th>
-                            <th class="px-4 py-2 border-b border-r bg-gray-100">Tahun ${tahunHistori}</th>
-                            <th colspan="5" class="px-4 py-2 border-b">Tahun Aktif (${selectTahun.value})</th>
+                            <th class="px-4 py-2 border-b border-r bg-gray-100">Tahun  ${tahunHistoriVal}</th>
+                            <th colspan="5" class="px-4 py-2 border-b">Tahun Aktif (${tahunAktif})</th>
                         </tr>
                         <tr class="text-[10px] uppercase">
                             <th class="border-r">Nilai Akhir</th>
@@ -253,7 +254,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         </tr>
                         <tr class="text-[10px] uppercase text-center">
                             <th class="border-r"></th>
-                            <th class="px-2 py-2 border-r">P2</th>
+                            <th class="px-2 py-2 border-r"></th>
                             <th class="px-2 py-2 border-r">Asesor</th>
                             <th class="px-2 py-2 border-r">Verif</th>
                             <th class="px-2 py-2 border-r">Asesor</th>
@@ -263,17 +264,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     <tbody class="divide-y divide-gray-100 bg-white">`;
 
         kriteriaList.forEach((k, i) => {
-            const level = (i % 5) + 1;
-            const disTarget   = (isP2Role && !isP2Filled) ? '' : 'disabled';
-            const disAsesor   = (isUserRole && !isModeHistori && !isAsesorFilled) ? '' : 'disabled';
-            const disVerif    = (isVerifRole && isModeHistori && !isVerifFilled) ? '' : 'disabled';
-
+const level = (i % 5) + 1;
+const isFinalized = {{ $isFinalized ? 'true' : 'false' }};
+const chkHistori = (nilaiHistori > 0 && Math.round(nilaiHistori) === level) ? 'checked' : '';
+const disTarget   = (isP2Role && !isFinalized) ? '' : 'disabled';
+const disAsesor   = (isUserRole && !isModeHistori && !isFinalized) ? '' : 'disabled';
+const disVerif    = (isVerifRole && isModeHistori && !isFinalized) ? '' : 'disabled';
             html += `
                 <tr class="hover:bg-blue-50/30 transition-colors">
                     <td class="text-center font-bold text-gray-500 border-r bg-gray-50/50">${level}</td>
                     <td class="p-4 text-xs leading-relaxed border-r">${k.nama_kriteria}</td>
-                    <td class="text-center border-r bg-gray-50/30"><input type="checkbox" ${levelHistori == level ? 'checked' : ''} disabled class="rounded w-4 h-4 text-gray-400"></td>
-                    <td class="text-center border-r ${isP2Role ? 'bg-amber-50/50' : 'bg-yellow-50/30'}"><input type="checkbox" class="kriteria-cb" ${levelTarget == level ? 'checked' : ''} ${disTarget} data-kriteria="${k.id_kriteria}" data-field="nilai_target" value="${level}"></td>
+                   <td class="text-center border-r bg-gray-50/30">
+                    <input type="checkbox" ${chkHistori} disabled class="rounded w-4 h-4 text-gray-400">
+                </td>
+                 <td class="text-center border-r ${isP2Role ? 'bg-amber-50/50' : 'bg-yellow-50/30'}"><input type="checkbox" class="kriteria-cb" ${levelTarget == level ? 'checked' : ''} ${disTarget} data-kriteria="${k.id_kriteria}" data-field="nilai_target" value="${level}"></td>
                     <td class="text-center border-r bg-blue-50/10"><input type="checkbox" class="kriteria-cb" ${levelAsesorInt == level ? 'checked' : ''} ${disAsesor} data-kriteria="${k.id_kriteria}" data-field="nilai_asesor_internal" value="${level}"></td>
                     <td class="text-center border-r bg-blue-50/20"><input type="checkbox" class="kriteria-cb" ${levelVerifInt == level ? 'checked' : ''} ${disVerif} data-kriteria="${k.id_kriteria}" data-field="nilai_verifikator_internal" value="${level}"></td>
                     <td class="text-center border-r bg-amber-50/10"><input type="checkbox" ${levelAsesorExt == level ? 'checked' : ''} disabled class="rounded w-4 h-4"></td>
@@ -396,8 +400,8 @@ saveBtn.onclick = async () => {
     });
 
     if (result.isConfirmed) {
-        Swal.fire({ title: 'Memproses...', didOpen: () => Swal.showLoading(), allowOutsideClick: false });
-        
+        Swal.fire({ title: 'Menyimpan...', didOpen: () => Swal.showLoading(), allowOutsideClick: false });
+
         const fd = new FormData();       
         const kriteria = [{
             kriteria_id: checked.dataset.kriteria,
@@ -420,7 +424,7 @@ saveBtn.onclick = async () => {
         fd.append('kriteria', JSON.stringify(kriteria));
         fd.append('catatan', JSON.stringify(mapCatatan));
         fd.append('role_pengirim', userRole);
-        fd.append('is_edit_mode', '0');
+        fd.append('is_edit_mode', '1');
         fd.append('bukti_diklik', '0'); 
         fd.append('_token', '{{ csrf_token() }}');
 
@@ -433,7 +437,15 @@ saveBtn.onclick = async () => {
             const responseData = await res.json();
 
             if (res.ok) {
-                Swal.fire('Berhasil!', 'Target nilai telah disimpan.', 'success').then(() => window.location.reload());
+                Swal.fire({
+                    title: 'Berhasil!',
+                    text: 'Data penilaian telah diperbarui.',
+                    icon: 'success',
+                    timer: 1500,
+                    showConfirmButton: false
+                }).then(() => {
+                    window.location.reload(); 
+                });
             } else {
                 throw new Error(responseData.message || 'Gagal menyimpan.');
             }
@@ -536,5 +548,3 @@ function confirmFinalisasi() {
 }
 </script>
 @endsection
-
-p2.target

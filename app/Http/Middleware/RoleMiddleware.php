@@ -16,12 +16,26 @@ class RoleMiddleware
      * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
      */
 public function handle($request, Closure $next, ...$roles)
-{
-    if (!in_array(Auth::user()->role, $roles)) {
-        abort(403);
+    {
+        if (!Auth::check()) {
+            return redirect()->route('login');
+        }
+
+        if (Auth::user()->status !== 'active') {
+            Auth::logout();
+            
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect()->route('login')->with('error', 'Akun Anda telah dinonaktifkan. Silakan hubungi administrator.');
+        }
+
+        if (!in_array(Auth::user()->role, $roles)) {
+            abort(403, 'Anda tidak memiliki hak akses ke halaman ini.');
+        }
+
+        return $next($request);
     }
-    return $next($request);
-}
 
 
 }

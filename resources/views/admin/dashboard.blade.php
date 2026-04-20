@@ -1,10 +1,9 @@
 @extends('admin.layouts.app')
-    <link rel="icon" type="image/x-icon" href="https://siga.kemenpppa.go.id/themes/sigabn/assets/images/favicon.ico">
-    <title>Dashboard</title>
+   @include('layouts.fav')
+   <title>Dashboard</title>
 
 @section('content')
 <style>
-    /* Custom Modern Scrollbar */
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
@@ -26,7 +25,6 @@
     .delay-2 { animation-delay: 0.2s; }
     .delay-3 { animation-delay: 0.3s; }
 
-    /* Card Styling */
     .glass-card {
         background: rgba(255, 255, 255, 0.8);
         backdrop-filter: blur(12px);
@@ -42,7 +40,6 @@
         box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
     }
 
-    /* Gradient Background for Header Section */
     .bg-gradient-header {
         background: radial-gradient(circle at top right, rgba(59, 130, 246, 0.05), transparent);
     }

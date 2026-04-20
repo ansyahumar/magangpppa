@@ -6,7 +6,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title', 'Dashboard P1')</title>
-    
+    @include('layouts.fav')
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
@@ -22,15 +22,23 @@
     <nav x-data="{ open: false }"
          class="bg-blue-600 dark:bg-blue-600 text-white border-b border-blue-700 shadow-md sticky top-0 z-30">
 
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center h-16">
+       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex justify-between items-center h-16">
 
-                <div class="flex items-center gap-3">
-                    <a href="{{ route('p1.nilai') }}" class="flex items-center gap-2">
-                        <x-application-logo class="h-9 w-auto fill-current text-white" />
-                        <span class="font-bold tracking-tight text-lg hidden md:block">P1 PANEL</span>
-                    </a>
+        <div class="flex items-center gap-3">
+            <a href="{{ route('p1.nilai') }}" class="flex items-center gap-3">
+                <x-application-logo class="h-9 w-auto fill-current text-white" />
+                
+                <div class="flex flex-col leading-tight">
+                    <span class="font-bold text-xs md:text-sm uppercase tracking-tight max-w-[180px]">
+                        Kementerian Pemberdayaan Perempuan 
+                    </span>
+                    <span class="font-bold text-xs md:text-sm uppercase tracking-tight max-w-[180px]">
+                        dan Perlindungan Anak
+                    </span>
                 </div>
+            </a>
+        </div>
 
                 <div class="hidden sm:flex items-center gap-6">
 

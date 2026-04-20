@@ -1,6 +1,4 @@
 @extends('admin.layouts.app')
-<link rel="icon" type="image/x-icon"
-      href="https://siga.kemenpppa.go.id/themes/sigabn/assets/images/favicon.ico">
     <title>Manajemen Akun</title>
 @section('content')
 <style>
@@ -25,16 +23,18 @@
     openModal: false, 
     editMode: false,
     loading: false,
-    userData: { id: null, name: '', email: '', role: 'user' },
-    
+    showPassword: false,
+   userData: { id: null, name: '', email: '', role: 'user', status: 'active', unit: '', no_id: '' },
     initAdd() {
         this.editMode = false;
-        this.userData = { id: null, name: '', email: '', role: 'user' };
+        this.showPassword = false;
+        this.userData = { id: null, name: '', email: '', role: 'user', unit: '', no_id: '' };
         this.openModal = true;
     },
     
     initEdit(user) {
         this.editMode = true;
+        this.showPassword = false;
         this.userData = { ...user };
         this.openModal = true;
     },
@@ -130,34 +130,41 @@
     </div>
 
     <div :class="loading ? 'animate-pulse opacity-50' : ''" class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden animate-in delay-2 transition-all duration-500">
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead class="bg-gray-50 dark:bg-gray-900/50 text-gray-500 dark:text-gray-400">
-                    <tr>
-                        <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">User</th>
-                        <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Role</th>
-                        <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Email</th>
-                        <th class="px-6 py-4 text-center text-xs font-bold uppercase tracking-wider">Aksi</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-200 dark:divide-gray-700 text-gray-700 dark:text-gray-300">
-                    @foreach($users as $user)
-                    <tr class="hover:bg-blue-50/30 dark:hover:bg-gray-700/60 transition-all duration-300 group">
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 text-white flex items-center justify-center rounded-xl font-bold shadow-sm group-hover:scale-105 transition-transform">
-                                    {{ strtoupper(substr($user->name, 0, 1)) }}
-                                </div>
-                                <div class="text-sm font-bold text-gray-900 dark:text-white group-hover:translate-x-1 transition-transform">{{ $user->name }}</div>
+    <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead class="bg-gray-50 dark:bg-gray-900/50 text-gray-500 dark:text-gray-400">
+                <tr>
+                    <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">User</th>
+                    <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Role</th>
+                    <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Email</th>
+                    <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Status</th>
+                    <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Unit Kerja</th>
+                    <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">No ID Indikator</th>
+                    <th class="px-6 py-4 text-center text-xs font-bold uppercase tracking-wider">Aksi</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200 dark:divide-gray-700 text-gray-700 dark:text-gray-300">
+                @foreach($users as $user)
+                <tr class="hover:bg-blue-50/30 dark:hover:bg-gray-700/60 transition-all duration-300 group">
+                    <!-- User -->
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 text-white flex items-center justify-center rounded-xl font-bold shadow-sm group-hover:scale-105 transition-transform">
+                                {{ strtoupper(substr($user->name, 0, 1)) }}
                             </div>
-                        </td>
+                            <div class="text-sm font-bold text-gray-900 dark:text-white group-hover:translate-x-1 transition-transform">{{ $user->name }}</div>
+                        </div>
+                    </td>
+                   <!-- Role -->
 <td class="px-6 py-4 whitespace-nowrap">
     <span class="px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-full 
-        {{ $user->role === 'admin' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 
-           ($user->role === 'verifikator' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 
-           ($user->role === 'p1' || $user->role === 'p2' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' : 
-           'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400')) }}">
-        
+        {{ 
+            $user->role === 'admin' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 
+            ($user->role === 'verifikator' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+            ($user->role === 'kordinator' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 
+            ($user->role === 'p1' || $user->role === 'p2' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' : 
+            'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'))) 
+        }}">
         @if($user->role === 'p1')
             Pemimpin
         @elseif($user->role === 'p2')
@@ -167,27 +174,40 @@
         @endif
     </span>
 </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">{{ $user->email }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-center">
-                            <div class="flex justify-center gap-2">
-                                <button @click="initEdit({{ json_encode($user) }})" class="p-2.5 text-blue-600 bg-blue-50 hover:bg-blue-600 hover:text-white rounded-xl transition-all shadow-sm active:scale-90 group/btn">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 group-hover/btn:rotate-12 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                    </svg>
-                                </button>
-                                <button @click="confirmDelete('{{ $user->id }}', '{{ $user->name }}')" class="p-2.5 text-red-600 bg-red-50 hover:bg-red-600 hover:text-white rounded-xl transition-all shadow-sm active:scale-90 group/btn">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 group-hover/btn:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                    </svg>
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
+                    <!-- Email -->
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">{{ $user->email }}</td>
+                    <!-- Status -->
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span :class="user.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'" 
+                              class="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider">
+                            {{ $user->status === 'active' ? 'Aktif' : 'Nonaktif' }}
+                        </span>
+                    </td>
+                    <!-- Unit Kerja -->
+                    <td class="px-6 py-4 text-sm">{{ $user->unit ?? '-' }}</td>
+                    <!-- No ID Indikator -->
+                    <td class="px-6 py-4 text-sm font-black text-blue-600">{{ $user->no_id ?? '-' }}</td>
+                    <!-- Aksi -->
+                    <td class="px-6 py-4 whitespace-nowrap text-center">
+                        <div class="flex justify-center gap-2">
+                            <button @click="initEdit({{ json_encode($user) }})" class="p-2.5 text-blue-600 bg-blue-50 hover:bg-blue-600 hover:text-white rounded-xl transition-all shadow-sm active:scale-90 group/btn">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 group-hover/btn:rotate-12 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                            </button>
+                            <button @click="confirmDelete('{{ $user->id }}', '{{ $user->name }}')" class="p-2.5 text-red-600 bg-red-50 hover:bg-red-600 hover:text-white rounded-xl transition-all shadow-sm active:scale-90 group/btn">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 group-hover/btn:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                @endforeach
+            </tbody>
+        </table>
     </div>
+</div>
 
     <div class="mt-6 animate-in delay-3">
         {{ $users->links() }}
@@ -226,15 +246,61 @@
                             <option value="admin">Administrator</option>
                             <option value="p1">Pemimpin</option>
                             <option value="p2">Karodatin</option>
+                            <option value="kordinator">kordinator</option>
                         </select>
                     </div>
-
                     <div>
-                        <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                            <span x-text="editMode ? 'Password (Kosongkan jika tidak ganti)' : 'Password'"></span>
-                        </label>
-                        <input type="password" name="password" :required="!editMode" class="w-full px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all">
-                    </div>
+    <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Status Akun</label>
+    <select name="status" x-model="userData.status" class="w-full px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all">
+        <option value="active">Aktif</option>
+        <option value="inactive">Nonaktif</option>
+    </select>
+</div>
+<div class="grid grid-cols-2 gap-4">
+    <div>
+        <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Unit Kerja</label>
+        <input type="text" name="unit" 
+               x-model="userData.unit"
+               placeholder="Contoh: Biro SDM" 
+               class="w-full px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all">
+    </div>
+    <div>
+        <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">ID Indikator (Manual)</label>
+        <input type="text" name="no_id" 
+               x-model="userData.no_id"
+               placeholder="E.g: 7" 
+               class="w-full px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all">
+    </div>
+</div>
+                  <div>
+    <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
+        <span x-text="editMode ? 'Password (Kosongkan jika tidak ganti)' : 'Password'"></span>
+    </label>
+    <div class="relative">
+        <input 
+            :type="showPassword ? 'text' : 'password'" 
+            name="password" 
+            :required="!editMode" 
+            autocomplete="new-password"
+            class="w-full px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all pr-12"
+        >
+        
+        <button 
+            type="button" 
+            @click="showPassword = !showPassword" 
+            class="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-blue-600 transition-colors"
+        >
+            <svg x-show="showPassword" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+            
+            <svg x-show="!showPassword" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.888 9.888L2 2m10 8l10 10" />
+            </svg>
+        </button>
+    </div>
+</div>
 
                     <div class="flex justify-end gap-3 pt-4">
                         <button type="button" @click="openModal = false" class="px-5 py-2.5 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition font-semibold active:scale-95">

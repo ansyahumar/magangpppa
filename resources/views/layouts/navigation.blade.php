@@ -16,6 +16,7 @@
             'verifikator' => route('verifikator.verifikasi'),
             'p2'          => route('p2.dashboard'),
             'p1'          => route('p1.nilai'), 
+            'kordinator'  => route('kordinator.dashboard'), 
             default       => route('dashboard'), 
         };
     @endphp

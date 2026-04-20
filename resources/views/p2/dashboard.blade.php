@@ -1,7 +1,7 @@
 @extends('layouts.p2')
 
-<link rel="icon" type="image/x-icon" href="https://siga.kemenpppa.go.id/themes/sigabn/assets/images/favicon.ico">
-<title>Dashboard P2 SPBE</title>
+@include('layouts.fav')
+<title>Dashboard SPBE</title>
 
 @section('content')
 <style>
@@ -30,7 +30,7 @@
      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8 animate-fade-in-up">
         <div>
             <h2 class="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">
-                Dashboard <span class="text-blue-600">P2 SPBE</span>
+                Dashboard <span class="text-blue-600">Target SPBE</span>
             </h2>
             <p class="text-gray-500 dark:text-gray-400 text-sm italic">Visualisasi data capaian berkelanjutan seluruh periode.</p>
         </div>

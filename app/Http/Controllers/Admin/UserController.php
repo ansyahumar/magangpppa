@@ -23,6 +23,8 @@ class UserController extends Controller
             'email'    => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8',
             'role'     => 'required|in:admin,verifikator,user,p1,p2',
+            'unit'     => 'nullable|string',
+            'no_id'    => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
@@ -38,6 +40,8 @@ class UserController extends Controller
                 'email'    => $request->email,
                 'password' => Hash::make($request->password),
                 'role'     => $request->role,
+                'unit'     => $request->unit,
+                'no_id'    => $request->no_id,
             ]);
 
             return response()->json(['message' => 'User baru berhasil ditambahkan!'], 200);
@@ -47,30 +51,30 @@ class UserController extends Controller
     }
 
     public function update(Request $request, User $user)
-    {
-        $validator = Validator::make($request->all(), [
-            'name'  => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email,' . $user->id,
-            'role'  => 'required|in:admin,verifikator,user,p1,p2',
-            'password' => 'nullable|min:8', 
-             ]);
+{
+    $request->validate([
+        'name' => 'required',
+        'email' => 'required|email|unique:users,email,' . $user->id,
+        'role' => 'required',
+        'status' => 'required|in:active,inactive',
+        'unit'   => 'nullable|string',
+        'no_id'  => 'nullable|string', 
+    ]);
 
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
+    $user->name = $request->name;
+    $user->email = $request->email;
+    $user->role = $request->role;
+    $user->status = $request->status; 
+    $user->unit   = $request->unit;
+    $user->no_id  = $request->no_id;
 
-        $user->name = $request->name;
-        $user->email = $request->email;
-        $user->role = $request->role;
-        
-        if ($request->filled('password')) {
-            $user->password = Hash::make($request->password);
-        }
-
-        $user->save();
-
-        return response()->json(['message' => 'Data user berhasil diperbarui!']);
+    if ($request->password) {
+        $user->password = Hash::make($request->password);
     }
+
+    $user->save();
+    return response()->json(['message' => 'User berhasil diperbarui']);
+}
 
     public function destroy(User $user)
     {
@@ -81,4 +85,5 @@ class UserController extends Controller
             return response()->json(['message' => 'Gagal menghapus user'], 500);
         }
     }
+    
 }

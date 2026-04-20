@@ -1,4 +1,4 @@
-@extends('layouts.p1')
+@extends('layouts.kordinator')
 
 @section('content')
 @php
@@ -33,12 +33,12 @@
 
     $aspekCounter = 1;
     $indikatorCounter = 1;
-
     $totalIndikator = \DB::table('indikator')->where('tahun', $tahun)->count();
     $sudahDiverif = \DB::table('penilaian_kriteria')
                         ->where('tahun', $tahun)
                         ->where('nilai_verifikator_internal', '>', 0)
                         ->count();
+    
     $persenPengerjaan = $totalIndikator > 0 ? ($sudahDiverif / $totalIndikator) * 100 : 0;
 @endphp
 
@@ -54,7 +54,7 @@
             <h2 class="text-2xl font-black uppercase tracking-tighter text-gray-800 dark:text-white">Rincian Hasil Penilaian <span class="text-blue-600">SPBE</span></h2>
             <p class="text-sm text-gray-500 italic">Membandingkan Tahun {{ $tahunLalu }} dan {{ $tahun }}</p>
         </div>
-        <form method="get" action="{{ route('p1.hasil') }}" class="bg-white p-2 rounded-lg shadow border">
+        <form method="get" action="{{ route('kordinator.nilai') }}" class="bg-white p-2 rounded-lg shadow border">
             <select name="tahun" class="font-bold border-none focus:ring-0 bg-transparent text-blue-600" onchange="this.form.submit()">
                 @foreach($tahunList as $year)
                     <option value="{{ $year }}" {{ ($tahun == $year) ? 'selected' : '' }}>Tahun {{ $year }}</option>

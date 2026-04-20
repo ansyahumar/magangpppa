@@ -45,6 +45,7 @@ return match ($role) {
     'p1'          => redirect()->route('p1.chart'),             
     'p2'          => redirect()->route('p2.dashboard'),             
     'user'        => redirect()->route('dashboard'),
+    'kordinator'  => redirect()->route('kordinator.chart'),
     default       => redirect('/dashboard'),
 };
 }

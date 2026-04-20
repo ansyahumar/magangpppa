@@ -1,7 +1,13 @@
-<link rel="icon" type="image/x-icon"
-      href="https://siga.kemenpppa.go.id/themes/sigabn/assets/images/favicon.ico">
-    <title>Form Penilaian</title>
+<x-app-layout>
+    <script>
+        document.title = "Form Penilaian SPBE";
+    </script>
 
+    <x-slot name="header">
+        <h2 class="text-xl font-semibold leading-tight text-gray-800 dark:text-gray-200">
+            Form Penilaian SPBE
+        </h2>
+    </x-slot>
 <style>
     input[type="checkbox"]:disabled {
         background-color: #e5e7eb !important; 
@@ -14,14 +20,12 @@
         background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e");
     }
 </style>
-
-<x-app-layout>
     <div class="max-w-7xl mx-auto px-4 py-8">
         <div class="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
             <div>
                 <h2 class="text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight">
                     Form Penilaian SPBE
-                    @if(Auth::user()->role === 'p2') <span class="text-amber-600">(Target P2)</span> @endif
+                    @if(Auth::user()->role === 'p2') <span class="text-amber-600">(Target)</span> @endif
                 </h2>
             </div>
             <form method="get" action="{{ route('penilaian.form') }}" class="bg-white dark:bg-gray-800 p-2 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
@@ -51,9 +55,11 @@
             </form>
         </div>
 
-  @php 
+ @php 
     $globalIndikatorCount = 1; 
     $globalAspekCount = 1;
+    $userAllowedIds = explode(',', Auth::user()->no_id ?? '');
+    $userAllowedIds = array_map('trim', $userAllowedIds);
 @endphp
 
 @foreach($domains as $d)
@@ -67,7 +73,7 @@
                 <div>
                     <h4 class="mb-4 text-md font-bold text-gray-700 dark:text-gray-200 flex items-center">
                         <span class="w-2 h-6 bg-blue-500 rounded-full mr-3"></span>
-                       Aspek {{ $globalAspekCount++ }}: {{ $a->nama_aspek }}
+                        Aspek {{ $globalAspekCount++ }}: {{ $a->nama_aspek }}
                     </h4>
                     
                     <div class="overflow-hidden border border-gray-200 dark:border-gray-700 rounded-xl">
@@ -81,17 +87,32 @@
                             </thead>
                             <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-100">
                                 @foreach($a->indikator as $ind)
-                                    <tr id="row-{{ $ind->id_indikator }}" class="baris-indikator hover:bg-gray-50 transition-colors border-l-4 border-transparent">
+                                    @php 
+                                        $currentNum = $globalIndikatorCount++; 
+                                        $hasAccess = (Auth::user()->role !== 'user' || in_array((string)$currentNum, $userAllowedIds));
+                                    @endphp
+                                    
+                                    <tr id="row-{{ $ind->id_indikator }}" 
+                                        class="baris-indikator hover:bg-gray-50 transition-colors border-l-4 border-transparent {{ !$hasAccess ? 'opacity-40 grayscale pointer-events-none' : '' }}">
                                         <td class="px-4 py-4 text-center text-sm text-gray-400 font-bold">
-                                            {{ $globalIndikatorCount++ }}
+                                            {{ $currentNum }}
                                         </td>
                                         <td class="px-4 py-4">
-                                            <button type="button" 
-        class="text-left font-medium text-blue-600 hover:underline indikator-item" 
-        data-id="{{ $ind->id_indikator }}" 
-        data-nomor="{{ $globalIndikatorCount - 1 }}"> 
-    {{ $ind->nama_indikator }}
-</button>
+                                            @if($hasAccess)
+                                                <button type="button" 
+                                                    class="text-left font-medium text-blue-600 hover:underline indikator-item" 
+                                                    data-id="{{ $ind->id_indikator }}" 
+                                                    data-nomor="{{ $currentNum }}"> 
+                                                    {{ $ind->nama_indikator }}
+                                                </button>
+                                            @else
+                                                <div class="flex items-center gap-2 text-gray-400 cursor-not-allowed">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                                    </svg>
+                                                    <span class="text-sm italic">{{ $ind->nama_indikator }}</span>
+                                                </div>
+                                            @endif
                                         </td>
                                         <td class="px-4 py-4 text-center">
                                             @php 
@@ -159,99 +180,58 @@
 <script>
 async function finalisasiUser() {
     try {
-        if (document.activeElement) {
-            document.activeElement.blur();
-        }
-
-        const tahunElement = document.getElementById('global-select-tahun');
-        const tahun = tahunElement ? tahunElement.value : '{{ $tahun }}';
+        const tahun = document.getElementById('global-select-tahun').value;
         const allRows = document.querySelectorAll('.baris-indikator');
-        let firstEmptyRow = null;
+        
         let emptyCount = 0;
+        let firstEmptyRow = null;
 
         allRows.forEach(row => {
-            row.style.backgroundColor = ''; 
-            row.classList.remove('ring-4', 'ring-red-500');
-
-            const nilaiSpan = row.querySelector('.nilai-angka');
-            const nilai = nilaiSpan ? parseInt(nilaiSpan.innerText.trim()) : 0;
-
-            if (isNaN(nilai) || nilai === 0) {
-                emptyCount++;
-                if (!firstEmptyRow) firstEmptyRow = row;
-                row.style.backgroundColor = 'rgba(254, 226, 226, 0.6)';
+            const hasAccess = !row.classList.contains('pointer-events-none');
+            
+            if (hasAccess) {
+                const nilai = parseInt(row.querySelector('.nilai-angka').innerText.trim()) || 0;
+                if (nilai === 0) {
+                    emptyCount++;
+                    if (!firstEmptyRow) firstEmptyRow = row;
+                    row.classList.add('ring-2', 'ring-red-500');
+                }
             }
         });
 
-        if (emptyCount > 0 && firstEmptyRow) {
-    await Swal.fire({
-        title: 'Data Belum Lengkap',
-        text: `${emptyCount} Indikator masih ada yang belum diisi.`,
-        icon: 'warning',
-        confirmButtonText: 'Lihat'
-    });
-
-    window.scrollTo({
-        top: 0,
-        behavior: 'smooth'
-    });
-
-    setTimeout(() => {
-        firstEmptyRow.scrollIntoView({ 
-            behavior: 'smooth', 
-            block: 'center' 
-        });
-        firstEmptyRow.classList.add('ring-4', 'ring-red-500', 'ring-inset');
-    }, 500);
-
-    return; 
-}
+        if (emptyCount > 0) {
+            Swal.fire('Belum Lengkap', `Ada ${emptyCount} indikator jatah Anda yang belum diisi.`, 'warning');
+            firstEmptyRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return;
+        }
 
         const konfirmasi = await Swal.fire({
-            title: 'Finalisasi?',
-            text: "Data yang sudah difinalisasi tidak dapat diubah lagi.",
+            title: 'Finalisasi Unit Kerja?',
+            text: "Indikator jatah Anda akan dikunci. Data akan dikirim ke Verifikator jika semua unit kerja sudah mengisi.",
             icon: 'question',
             showCancelButton: true,
-            confirmButtonText: 'Ya, Proses Sekarang',
-            cancelButtonText: 'Batal'
+            confirmButtonText: 'Ya, Finalisasi'
         });
 
         if (konfirmasi.isConfirmed) {
-            Swal.fire({
-                title: 'Sedang Memproses...',
-                didOpen: () => { Swal.showLoading(); },
-                allowOutsideClick: false
-            });
-
-            const response = await fetch("{{ route('penilaian.process') }}", {
+            Swal.showLoading();
+            const res = await fetch("{{ route('penilaian.process') }}", {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                },
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
                 body: JSON.stringify({ tahun: tahun })
             });
-
-            const contentType = response.headers.get("content-type");
-            if (response.ok && contentType && contentType.indexOf("application/json") !== -1) {
-                await Swal.fire('Berhasil!', 'Data telah difinalisasi.', 'success');
-                window.location.reload();
-            } else if (response.ok) {
-
-                await Swal.fire('Berhasil!', 'Data telah diproses.', 'success');
-                window.location.reload();
+            
+            const result = await res.json();
+            if (res.ok) {
+                Swal.fire('Berhasil', result.message, 'success').then(() => window.location.reload());
             } else {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Gagal memproses data.');
+                throw new Error(result.message);
             }
         }
     } catch (error) {
-        console.error("Finalisasi Error:", error);
-        Swal.fire('Gagal', error.message || 'Terjadi kesalahan sistem.', 'error');
+        Swal.fire('Gagal', error.message, 'error');
     }
 }
-
 document.addEventListener('DOMContentLoaded', () => {
     const modal = document.getElementById('modal-kriteria');
     const content = document.getElementById('kriteria-content');
@@ -262,63 +242,60 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let buktiStore = {}; 
     let activeIndikatorId = null;
+    let activeNomorUrut = null;
     let buktiClicked = false;
 
-    async function showModal(indikatorId, nomorUrut) {
-        activeIndikatorId = indikatorId;
-        const tahunAktifVal = document.getElementById('global-select-tahun').value;
-        
-        modal.classList.remove('hidden');
-        content.innerHTML = '<div class="flex justify-center py-12"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>';
-        saveBtn.classList.add('hidden');
-        buktiStore = {};
+async function showModal(indikatorId, nomorUrut) {
+    activeIndikatorId = indikatorId;
+    activeNomorUrut = nomorUrut;
+    
+    const selectTahun = document.getElementById('global-select-tahun');
+    const tahunAktifVal = selectTahun ? selectTahun.value : new Date().getFullYear();
 
-        try {
-            const res = await fetch(`/indikator/${indikatorId}/detail?tahun=${tahunAktifVal}`);
-            if (!res.ok) throw new Error(`Server merespon dengan status ${res.status}`);
-            const data = await res.json();
+    modal.classList.remove('hidden');
+    content.innerHTML = '<div class="flex justify-center py-12"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>';
+    saveBtn.classList.add('hidden');
+    
+    try {
+        const res = await fetch(`/indikator/${indikatorId}/detail?tahun=${tahunAktifVal}`);
+        if (!res.ok) throw new Error(`Server error: ${res.status}`);
+        const data = await res.json();
 
-            if (!data.kriteria || data.kriteria.length === 0) {
-                content.innerHTML = '<div class="p-8 text-center text-gray-500 font-semibold">Data kriteria tidak ditemukan.</div>';
-                return;
-            }
-
-            const isModeHistori = data.mode === 'histori';
-            const isP2Filled = data.kriteria.some(k => k.nilai_target != null && k.nilai_target != 0);
-            const isAsesorFilled = data.kriteria.some(k => k.nilai_asesor_internal != null && k.nilai_asesor_internal != 0);
-            const isVerifFilled = data.kriteria.some(k => k.nilai_verifikator_internal != null && k.nilai_verifikator_internal != 0);
-
-            if (userRole === 'p2') {
-                if (!isP2Filled) saveBtn.classList.remove('hidden');
-            } else if (userRole === 'verifikator') {
-                if (isModeHistori && !isVerifFilled) saveBtn.classList.remove('hidden');
-            } else if (userRole === 'user') {
-                if (!isModeHistori && !isAsesorFilled) saveBtn.classList.remove('hidden');
-            }
-
-            renderUI(data, isModeHistori, isVerifFilled, isP2Filled, isAsesorFilled, nomorUrut);
-
-        } catch (e) {
-            console.error(e);
-            Swal.fire('Error', e.message, 'error');
-            modal.classList.add('hidden');
+        if (!data.kriteria || data.kriteria.length === 0) {
+            content.innerHTML = '<div class="p-8 text-center text-gray-500 font-semibold">Data kriteria tidak ditemukan.</div>';
+            return;
         }
-    }
 
-    function renderUI(data, isModeHistori, isVerifFilled, isP2Filled, isAsesorFilled, nomorUrut) {
+        const historiRow = data.kriteria.find(k => k.nilai_histori > 0);
+        const nilaiHistoriTahunLalu = historiRow ? parseFloat(historiRow.nilai_histori) : 0;
+        const isYearFinalizedGlobal = {{ $currentYearIsFinal ? 'true' : 'false' }};
+        const isThisIndikatorLocked = data.kriteria.some(k => k.status_vrifU === 'final');
+        const finalLockStatus = isYearFinalizedGlobal || isThisIndikatorLocked;
+        const isModeHistori = data.mode === 'histori';
+
+        if (!finalLockStatus) {
+            if (userRole === 'p2' || (userRole === 'verifikator' && isModeHistori) || (userRole === 'user' && !isModeHistori)) {
+                saveBtn.classList.remove('hidden');
+            }
+        }
+
+        renderUI(data, isModeHistori, nomorUrut, finalLockStatus, nilaiHistoriTahunLalu);
+
+    } catch (e) {
+        console.error("Gagal memuat modal:", e);
+        Swal.fire('Error', e.message, 'error');
+        modal.classList.add('hidden');
+    }
+}
+
+    function renderUI(data, isModeHistori, nomorUrut, isYearFinalized, nilaiHistori) {
         const detail = data.detail || { nomor_indikator: '-', nama_indikator: '-' };
         const tahunHistoriVal = data.tahun_histori || (parseInt(tahunAktif) - 1);
         const cat = (data.catatan && data.catatan.length > 0) ? data.catatan[0] : {id_catatan: 'new', nama_catatankriteria: '', pencapaian: '', bukti: '[]'};
+        const nilaiHistoriIndikator = data.kriteria.find(k => parseFloat(k.nilai_histori) > 0)?.nilai_histori;
         const isVerifRole = (userRole === 'verifikator');
-        const isP2Role = (userRole === 'p2');
         const isUserRole = (userRole === 'user');
-        const lockNotes = (isVerifRole || isP2Role || (isUserRole && (isModeHistori || isAsesorFilled))) ? 'readonly' : '';
-        const globalTarget = data.kriteria.find(k => Number(k.nilai_target) > 0)?.nilai_target || 0;
-        const globalAsesor = data.kriteria.find(k => Number(k.nilai_asesor_internal) > 0)?.nilai_asesor_internal || 0;
-        const globalVerif  = data.kriteria.find(k => Number(k.nilai_verifikator_internal) > 0)?.nilai_verifikator_internal || 0;
-        const globalHistori = data.kriteria.find(k => Number(k.nilai_histori) > 0)?.nilai_histori || 0;
-        const globalAsesorExt = data.kriteria.find(k => Number(k.nilai_asesor_external) > 0)?.nilai_asesor_external || 0;
-        const globalVerifExt  = data.kriteria.find(k => Number(k.nilai_akhir_external) > 0)?.nilai_akhir_external || 0;
+        const lockNotes = isYearFinalized ? 'readonly' : '';
 
         let html = `
             <div class="mb-6 p-5 bg-blue-50 border-l-4 border-blue-600 rounded-r-2xl text-left">
@@ -354,7 +331,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         </tr>
                         <tr class="text-[8px] uppercase">
                             <th class="border-r bg-gray-100/50"></th>
-                            <th class="px-2 py-2 border-r">P2</th>
+                            <th class="px-2 py-2 border-r"></th>
                             <th class="px-2 py-2 border-r">Asesor</th>
                             <th class="px-2 py-2 border-r">Verif</th>
                             <th class="px-2 py-2 border-r">Asesor</th>
@@ -364,16 +341,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     <tbody class="divide-y divide-gray-100 dark:divide-gray-700 bg-white dark:bg-gray-800">`;
 
         data.kriteria.forEach((k, i) => {
-            const level = (i % 5) + 1;         
-            const chkHistori = Number(globalHistori) === level ? 'checked' : '';
-            const chkTarget  = Number(globalTarget) === level ? 'checked' : '';
-            const chkAsesor  = Number(globalAsesor) === level ? 'checked' : '';
-            const chkVerif   = Number(globalVerif) === level ? 'checked' : ''; 
-            const chkAsesorExt = Number(globalAsesorExt) === level ? 'checked' : '';
-            const chkAkhirExt  = Number(globalVerifExt) === level ? 'checked' : '';
-            const disTarget = (isP2Role && !isP2Filled) ? '' : 'disabled';
-            const disAsesor = (isUserRole && !isModeHistori && !isAsesorFilled) ? '' : 'disabled';
-            const disVerif  = (isVerifRole && isModeHistori && !isVerifFilled) ? '' : 'disabled';
+            const level = (i % 5) + 1;
+            const isVerified = (k.status_target === 'verified');
+            const isP2OrKord = (userRole === 'p2' || userRole === 'koordinator' || userRole === 'admin');
+
+            const chkTarget = (Number(k.nilai_target) === level && (isVerified || isP2OrKord)) ? 'checked' : '';
+            const chkAsesor = (Number(k.nilai_asesor_internal) === level) ? 'checked' : '';
+            const chkVerif  = (Number(k.nilai_verifikator_internal) === level) ? 'checked' : '';
+          const chkHistori = (nilaiHistori > 0 && Math.round(nilaiHistori) === level) ? 'checked' : '';
+            const chkAsesorExt = (Number(k.nilai_asesor_external) === level) ? 'checked' : '';
+            const chkAkhirExt = (Number(k.nilai_akhir_external) === level) ? 'checked' : '';
+            
+            const disTarget = 'disabled'; 
+            const disAsesor = (isYearFinalized) ? 'disabled' : (isUserRole && !isModeHistori ? '' : 'disabled');
+            const disVerif  = (isYearFinalized) ? 'disabled' : (isVerifRole && isModeHistori ? '' : 'disabled');
 
             html += `
                 <tr class="hover:bg-blue-50/30 transition-colors">
@@ -382,7 +363,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <td class="text-center border-r bg-gray-50/30">
                         <input type="checkbox" ${chkHistori} disabled class="rounded w-4 h-4">
                     </td>
-                    <td class="text-center border-r">
+                    <td class="text-center border-r ${isVerified ? 'bg-green-50/50' : 'bg-amber-50/30'}">
                         <input type="checkbox" class="kriteria-cb" ${chkTarget} ${disTarget} data-kriteria="${k.id_kriteria}" data-field="nilai_target" value="${level}">
                     </td>
                     <td class="text-center border-r bg-blue-50/20">
@@ -400,17 +381,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 </tr>`;
         });
 
-        html += `</tbody></table></div>`;
-        html += `
+        html += `</tbody></table></div>
             <div class="bg-gray-50 p-6 rounded-2xl border border-gray-200 text-left">
                 <h4 class="font-bold text-gray-800 mb-4">Catatan & Bukti Pendukung</h4>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div class="space-y-2">
-                        <label class="text-[10px] font-bold text-gray-400 uppercase">Catatan</label>
-                        <textarea class="catatan-input w-full border-gray-200 rounded-lg text-xs" rows="4" data-id="${cat.id_catatan}" ${lockNotes}>${cat.nama_catatankriteria ?? ''}</textarea>
+                        <label class="text-[10px] font-bold text-gray-400 uppercase flex justify-between">
+                            <span>Catatan</span>
+                            <span class="text-red-500 text-[9px]">* Wajib diisi</span>
+                        </label>
+                        <textarea class="catatan-input w-full border-gray-200 focus:ring-blue-500 focus:border-blue-500 rounded-lg text-xs" 
+                            placeholder="Berikan penjelasan pencapaian..."
+                            rows="4" data-id="${cat.id_catatan}" ${lockNotes}>${cat.nama_catatankriteria ?? ''}</textarea>
                     </div>
+
                     <div class="space-y-2">
-                        <label class="text-[10px] font-bold text-gray-400 uppercase">Lampiran Bukti</label>
+                        <label class="text-[10px] font-bold text-gray-400 uppercase"> 
+                            <span>Lampiran Bukti</span>
+                            <span class="text-red-500 text-[9px]">* Minimal 1 file/link</span>
+                        </label>
                         ${lockNotes === '' ? `
                             <div class="space-y-2">
                                 <input type="file" class="bukti-file block w-full text-[10px] text-gray-500" multiple>
@@ -419,69 +408,32 @@ document.addEventListener('DOMContentLoaded', () => {
                             </div>
                         ` : '<p class="text-[10px] text-gray-400 italic">Bukti dikunci.</p>'}
                         <div id="display-${cat.id_catatan}" class="mt-2 flex flex-wrap gap-1">`;
-        
+
         try {
             const buktiArray = JSON.parse(cat.bukti || '[]');
-
-buktiArray.forEach((b, index) => {
-    if (!b) return;
-
-    let value = b.trim();
-    let finalUrl = '';
-    let isUrl = false;
-
-    const looksLikeUrl = 
-        value.startsWith('http://') ||
-        value.startsWith('https://') ||
-        value.startsWith('www.') ||
-        (value.includes('.') && !value.toLowerCase().endsWith('.pdf'));
-
-    if (looksLikeUrl) {
-        if (!value.startsWith('http://') && !value.startsWith('https://')) {
-            value = 'https://' + value;
+            buktiArray.forEach((b, index) => {
+                if (!b) return;
+                let value = b.trim();
+                let isUrl = value.startsWith('http') || value.startsWith('www') || (value.includes('.') && !value.toLowerCase().endsWith('.pdf'));
+                let finalUrl = isUrl ? (value.startsWith('http') ? value : 'https://' + value) : `/view-bukti/${value.split('/').pop()}`;
+                
+                const theme = isUrl ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-blue-50 text-blue-700 border-blue-200';
+                const icon = isUrl ? 'fa-link' : 'fa-file-pdf';
+                html += `
+                    <a href="${finalUrl}" target="_blank" class="inline-flex items-center px-2 py-1 rounded-md border ${theme} text-[9px] font-bold shadow-sm hover:opacity-80">
+                        <i class="fa-solid ${icon} mr-1"></i> ${isUrl ? 'Link' : 'File'} ${index + 1}
+                    </a>`;
+            });
+            if (buktiArray.length === 0) html += '<span class="text-[9px] text-gray-400 italic">Belum ada bukti lampiran.</span>';
+        } catch (e) {
+            html += '<span class="text-red-500 text-[9px]">Gagal memuat bukti.</span>';
         }
 
-        finalUrl = value;
-        isUrl = true;
-
-    } else {
-
-        const fileName = value.split('/').pop();
-
-        finalUrl = `/view-bukti/${fileName}`;
-        isUrl = false;
-    }
-
-    const icon = isUrl 
-        ? `<svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-             d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.826L10.242 9.172a4 4 0 015.656 0l4 4a4 4 0 01-5.656 5.656l-1.102 1.101" />
-           </svg>` 
-        : `<svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-             d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-           </svg>`;
-
-    const theme = isUrl 
-        ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
-        : 'bg-blue-50 text-blue-700 border-blue-200';
-
-    const label = isUrl ? `Link ${index + 1}` : `File ${index + 1}`;
-
-    html += `
-        <a href="${finalUrl}" 
-           target="_blank" 
-           rel="noopener noreferrer"
-           class="inline-flex items-center px-2.5 py-1.5 rounded-full border ${theme} text-[10px] font-bold transition-all shadow-sm hover:shadow-md">
-            ${icon} <span>${label}</span>
-        </a>`;
-});
-        } catch(e) {}
-
-        html += `</div></div>
+        html += `</div>
+                    </div>
                     <div class="space-y-2">
                         <label class="text-[10px] font-bold text-gray-400 uppercase">Catatan Verifikator</label>
-                        <textarea class="pencapaian-input w-full border-gray-200 rounded-lg text-xs bg-gray-100" rows="4" data-id="${cat.id_catatan}" disabled>${cat.pencapaian ?? ''}</textarea>
+                        <textarea class="pencapaian-input w-full border-gray-200 rounded-lg text-xs bg-gray-100" rows="4" disabled>${cat.pencapaian ?? ''}</textarea>
                     </div>
                 </div>
             </div>`;
@@ -534,62 +486,57 @@ buktiArray.forEach((b, index) => {
         }
     }
 
-   saveBtn.onclick = async () => {
-    const targetField = (userRole === 'p2') ? 'nilai_target' : 
-                        (userRole === 'verifikator') ? 'nilai_verifikator_internal' : 
-                        'nilai_asesor_internal';
+    saveBtn.onclick = async () => {
+        const targetField = (userRole === 'p2') ? 'nilai_target' : 
+                            (userRole === 'verifikator') ? 'nilai_verifikator_internal' : 
+                            'nilai_asesor_internal';
 
-    const checked = content.querySelector(`.kriteria-cb[data-field="${targetField}"]:checked`);
-    
-    if (!checked) {
-        return Swal.fire({
-            title: 'Peringatan',
-            text: 'Silakan pilih salah satu Level penilaian terlebih dahulu!',
-            icon: 'warning',
-            confirmButtonColor: '#3085d6'
+        const checked = content.querySelector(`.kriteria-cb[data-field="${targetField}"]:checked`);
+        if (!checked) {
+            return Swal.fire('Peringatan', 'Silakan pilih salah satu Level penilaian terlebih dahulu!', 'warning');
+        }
+
+        const catatanInput = content.querySelector('.catatan-input');
+        const catatanValue = catatanInput ? catatanInput.value.trim() : '';
+        const catId = catatanInput ? catatanInput.dataset.id : null;
+
+        if (catatanValue === '') {
+            return Swal.fire('Catatan Wajib Diisi', 'Mohon berikan penjelasan terkait indikator ini.', 'warning');
+        }
+
+        const hasNewFiles = buktiStore[catId] && buktiStore[catId].files.length > 0;
+        const hasNewLinks = buktiStore[catId] && buktiStore[catId].links.length > 0;
+        const displayDiv = document.getElementById(`display-${catId}`);
+        const hasExistingBukti = displayDiv && (displayDiv.querySelectorAll('a').length > 0);
+
+        if (!hasNewFiles && !hasNewLinks && !hasExistingBukti) {
+            return Swal.fire('Bukti Wajib Ada', 'Silakan unggah file atau masukkan link bukti pendukung.', 'warning');
+        }
+
+        const result = await Swal.fire({
+            title: 'Simpan Penilaian?',
+            text: "Data akan disimpan!",
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Ya, Simpan!'
         });
-    }
 
-    const result = await Swal.fire({
-        title: 'Simpan Penilaian?',
-        text: "Data akan disimpan!",
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'Ya, Simpan!',
-        cancelButtonText: 'Batal'
-    });
-
-    if (result.isConfirmed) {
+        if (result.isConfirmed) {
             Swal.fire({ title: 'Memproses...', didOpen: () => Swal.showLoading(), allowOutsideClick: false });
 
             const fd = new FormData();
             const payloadKriteria = {
-                kriteria_id: null,
-                nilai_target: null,
-                nilai_asesor_internal: null,
-                nilai_verifikator_internal: null
+                kriteria_id: checked.dataset.kriteria,
+                [targetField]: checked.value
             };
 
-            content.querySelectorAll('.kriteria-cb:checked').forEach(cb => {
-                const field = cb.dataset.field;
-                payloadKriteria[field] = cb.value;
-                if (!payloadKriteria.kriteria_id) payloadKriteria.kriteria_id = cb.dataset.kriteria;
-            });
-
-            if (!payloadKriteria.kriteria_id) {
-                const first = content.querySelector('.kriteria-cb');
-                if (first) payloadKriteria.kriteria_id = first.dataset.kriteria;
-            }
-
-            const mapCatatan = {};
-            content.querySelectorAll('.catatan-input').forEach(inp => {
-                const cid = inp.dataset.id;
-                mapCatatan[cid] = {
-                    id_catatan: cid,
-                    nama_catatankriteria: inp.value,
-                    links: buktiStore[cid] ? buktiStore[cid].links : []
-                };
-            });
+            const mapCatatan = {
+                [catId]: {
+                    id_catatan: catId,
+                    nama_catatankriteria: catatanValue,
+                    links: buktiStore[catId] ? buktiStore[catId].links : []
+                }
+            };
 
             fd.append('tahun', selectTahun.value);
             fd.append('id_indikator', activeIndikatorId);
@@ -598,11 +545,9 @@ buktiArray.forEach((b, index) => {
             fd.append('bukti_diklik', buktiClicked ? '1' : '0');
             fd.append('_token', '{{ csrf_token() }}');
 
-            Object.keys(buktiStore).forEach(id => {
-                if (buktiStore[id].files) {
-                    buktiStore[id].files.forEach(f => fd.append('file_bukti[]', f));
-                }
-            });
+            if (buktiStore[catId] && buktiStore[catId].files) {
+                buktiStore[catId].files.forEach(f => fd.append('file_bukti[]', f));
+            }
 
             try {
                 const res = await fetch('/penilaian-kriteria/store', {
@@ -613,7 +558,7 @@ buktiArray.forEach((b, index) => {
                 if (res.ok) {
                     Swal.fire('Berhasil!', 'Data disimpan.', 'success').then(() => window.location.reload());
                 } else {
-                    throw new Error('Gagal menyimpan.');
+                    throw new Error('Gagal menyimpan ke server.');
                 }
             } catch (e) {
                 Swal.fire('Gagal', e.message, 'error');
@@ -624,9 +569,7 @@ buktiArray.forEach((b, index) => {
     document.querySelectorAll('.indikator-item').forEach(btn => {
         btn.onclick = (e) => {
             e.preventDefault();
-        const id = btn.dataset.id;
-        const nomor = btn.dataset.nomor; 
-        showModal(id, nomor);
+            showModal(btn.dataset.id, btn.dataset.nomor);
         };
     });
 

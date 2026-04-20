@@ -43,8 +43,14 @@ class Indikator extends Model
     {
         return $this->hasOne(PenilaianKriteria::class, 'id_indikator', 'id_indikator');
     }
-    public function penilaian()
+
+public function catatan()
 {
-   return $this->hasMany(PenilaianKriteria::class, 'id_indikator', 'id_indikator');
+    return $this->hasMany(CatatanKriteria::class, 'id_indikator', 'id_indikator');
+}
+
+public function penilaian()
+{
+    return $this->hasMany(PenilaianKriteria::class, 'id_indikator', 'id_indikator');
 }
 }

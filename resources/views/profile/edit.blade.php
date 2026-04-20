@@ -1,5 +1,4 @@
-    <link rel="icon" type="image/x-icon"
-      href="https://siga.kemenpppa.go.id/themes/sigabn/assets/images/favicon.ico">
+@include('layouts.fav')
     <title>Profile</title>
 <x-app-layout>
     <x-slot name="header">

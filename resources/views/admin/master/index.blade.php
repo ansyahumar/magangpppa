@@ -1,7 +1,6 @@
 @extends('admin.layouts.app')
 
-<link rel="icon" type="image/x-icon"
-      href="https://siga.kemenpppa.go.id/themes/sigabn/assets/images/favicon.ico">
+@include('layouts.fav')
     <title>Master Data</title>
 
 @section('content')

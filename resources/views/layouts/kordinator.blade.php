@@ -5,7 +5,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>@yield('title', 'Penilaian Target')</title>
+    <title>@yield('title', 'Koordinator Panel')</title>
     @include('layouts.fav')
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
@@ -26,43 +26,48 @@
             <div class="flex justify-between items-center h-16">
 
                 <div class="flex items-center gap-3">
-                    <a href="{{ route('p2.dashboard') }}" class="flex items-center gap-2">
+                    <a href="{{ route('kordinator.chart') }}" class="flex items-center gap-2">
                         <x-application-logo class="h-9 w-auto fill-current text-white" />
-                        <span class="font-bold tracking-tight text-lg hidden md:block"></span>
+                        <span class="font-bold tracking-tight text-lg hidden md:block">
+                            KOORDINATOR PANEL
+                        </span>
                     </a>
                 </div>
 
                 <div class="hidden sm:flex items-center gap-6">
 
-                    <a href="{{ route('p2.dashboard') }}"
+                    <a href="{{ route('kordinator.chart') }}"
                        class="flex items-center gap-2 px-4 py-2 font-medium transition duration-300
                               border-b-2
-                              {{ request()->routeIs('p2.dashboard') ? 'border-[#D8E90B]' : 'border-transparent' }}
-                              hover:border-[#D8E90B] hover:bg-blue-700 rounded-t-lg">Dashboard</a>
+                              {{ request()->routeIs('kordinator.chart') ? 'border-[#D8E90B]' : 'border-transparent' }}
+                              hover:border-[#D8E90B] hover:bg-blue-700 rounded-t-lg">
+                        Dashboard 
+                    </a>
 
-                    <a href="{{ route('p2.target') }}"
+                    <a href="{{ route('kordinator.nilai') }}"
                        class="flex items-center gap-2 px-4 py-2 font-medium transition duration-300
                               border-b-2
-                              {{ request()->routeIs('p2.target') ? 'border-[#D8E90B]' : 'border-transparent' }}
-                              hover:border-[#D8E90B] hover:bg-blue-700 rounded-t-lg">Penilaian</a>
+                              {{ request()->routeIs('kordinator.nilai') ? 'border-[#D8E90B]' : 'border-transparent' }}
+                              hover:border-[#D8E90B] hover:bg-blue-700 rounded-t-lg">
+                        Data Nilai
+                    </a>
+
+                    <a href="{{ route('kordinator.dashboard') }}"
+                       class="flex items-center gap-2 px-4 py-2 font-medium transition duration-300
+                              border-b-2
+                              {{ request()->routeIs('kordinator.dashboard') ? 'border-[#D8E90B]' : 'border-transparent' }}
+                              hover:border-[#D8E90B] hover:bg-blue-700 rounded-t-lg">
+                        Verifikasi Nilai Target
+                    </a>
 
                 </div>
 
                 <div class="hidden sm:flex items-center gap-4">
-
                     <button
                         @click="darkMode = !darkMode; localStorage.setItem('theme', darkMode ? 'dark' : 'light')"
-                        class="p-2 rounded-full bg-blue-700 dark:bg-gray-700
-                               text-white dark:text-[#D8E90B]
-                               hover:bg-blue-800 dark:hover:bg-gray-600 transition shadow-inner border border-blue-500">
-                        
-                        <svg x-show="darkMode" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                        </svg>
-
-                        <svg x-show="!darkMode" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
-                        </svg>
+                        class="p-2 rounded-full bg-blue-700 dark:bg-gray-700 text-white dark:text-[#D8E90B] hover:bg-blue-800 transition shadow-inner border border-blue-500">
+                        <svg x-show="darkMode" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                        <svg x-show="!darkMode" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
                     </button>
 
                     <x-dropdown align="right" width="48">
@@ -74,23 +79,17 @@
                                 <span class="text-sm">{{ Auth::user()->name }}</span>
                             </button>
                         </x-slot>
-
                         <x-slot name="content">
-                            <div class="block px-4 py-2 text-xs text-gray-400">Role: Karodatin</div>
-                            <x-dropdown-link :href="route('profile.edit')">
-                                <i class="fa-solid fa-user me-2 text-gray-400"></i> Profile
-                            </x-dropdown-link>
-
+                            <div class="block px-4 py-2 text-xs text-gray-400">Role: Koordinator</div>
+                            <x-dropdown-link :href="route('profile.edit')"><i class="fa-solid fa-user me-2 text-gray-400"></i> Profile</x-dropdown-link>
                             <form method="POST" action="{{ route('logout') }}">
                                 @csrf
-                                <x-dropdown-link :href="route('logout')"
-                                    onclick="event.preventDefault(); this.closest('form').submit();" class="text-red-600">
+                                <x-dropdown-link :href="route('logout')" onclick="event.preventDefault(); this.closest('form').submit();" class="text-red-600">
                                     <i class="fa-solid fa-right-from-bracket me-2 text-red-600"></i> Keluar Sistem
                                 </x-dropdown-link>
                             </form>
                         </x-slot>
                     </x-dropdown>
-
                 </div>
 
                 <div class="sm:hidden">
@@ -101,23 +100,17 @@
                         </svg>
                     </button>
                 </div>
-
             </div>
         </div>
 
         <div x-show="open" x-transition class="sm:hidden bg-blue-600 border-t border-blue-500">
-            <a href="{{ route('p2.dashboard') }}" class="block px-4 py-3 font-medium border-b-2 {{ request()->routeIs('p2.dashboard') ? 'border-[#D8E90B]' : 'border-transparent' }}">Dashboard</a>
-            <a href="{{ route('p2.target') }}" class="block px-4 py-3 font-medium border-b-2 {{ request()->routeIs('p2.target') ? 'border-[#D8E90B]' : 'border-transparent' }}">Penilaian</a>
+            <a href="{{ route('kordinator.chart') }}" class="block px-4 py-3 font-medium border-b-2 {{ request()->routeIs('kordinator.chart') ? 'border-[#D8E90B]' : 'border-transparent' }}">Verifikasi Nilai Target</a>
+            <a href="{{ route('kordinator.nilai') }}" class="block px-4 py-3 font-medium border-b-2 {{ request()->routeIs('kordinator.nilai') ? 'border-[#D8E90B]' : 'border-transparent' }}">Data Nilai</a>
+            <a href="{{ route('kordinator.dashboard') }}" class="block px-4 py-3 font-medium border-b-2 {{ request()->routeIs('kordinator.dashboard') ? 'border-[#D8E90B]' : 'border-transparent' }}">Dashboard</a>
         </div>
     </nav>
 
-    <main class="max-w-7xl mx-auto p-6">
-        <div class="mb-4">
-            <h1 class="text-xl font-bold text-gray-800 dark:text-white border-l-4 border-blue-600 pl-3">
-                @yield('title')
-            </h1>
-        </div>
-        
+    <main>
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
             @yield('content')
         </div>

@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\UserController;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\P1Controller;
 use App\Http\Controllers\IndikatorController;
+use App\Http\Controllers\KordinatorController;
 
 
 Route::get('/dashboard-redirect', function () {
@@ -34,6 +35,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::put('password', [PasswordController::class, 'update'])->name('password.update');
 });
 
 
@@ -171,4 +173,19 @@ Route::get('/dashboard-redirect', function () {
     };
 })->name('dashboard.redirect');
 
+
+Route::prefix('kordinator')->middleware(['auth', 'role:kordinator'])->group(function () {
+
+    Route::get('/', function () {
+        return redirect()->route('kordinator.chart');
+    });
+    Route::get('/chart-verifikasi', [KordinatorController::class, 'dashboard'])->name('kordinator.dashboard');
+    Route::get('/dashboard', [KordinatorController::class, 'showChart'])->name('kordinator.chart');
+    Route::get('/nilai', [KordinatorController::class, 'indexNilai'])->name('kordinator.nilai');
+    Route::get('/verifikasi-target/{tahun}', [KordinatorController::class, 'showTargetVerif'])->name('koordinator.target.list');
+    Route::post('/target/approve', [KordinatorController::class, 'approveTarget'])->name('koordinator.target.approve');
+    Route::post('/approve-target', [KordinatorController::class, 'approveTarget'])->name('approve.target');
+    Route::post('/simpan-verifikasi', [KordinatorController::class, 'storeVerifikasi'])->name('kordinator.store');
+    Route::get('/get-detail-review/{id}/{tahun}', [KordinatorController::class, 'getDetailData'])->name('kordinator.detail.data');
+});
 require __DIR__.'/auth.php';

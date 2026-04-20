@@ -18,6 +18,10 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'status',
+        'unit',   
+        'no_id',
+
     ];
 
     protected $hidden = [
@@ -45,6 +49,7 @@ public function getRoleNameAttribute()
         'admin' => 'Administrator',
         'verifikator' => 'Verifikator',
         'user' => 'User',
+        'kordinator' => 'Kordinator',
     ][$this->role] ?? $this->role;
 }
 }

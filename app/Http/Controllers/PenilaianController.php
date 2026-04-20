@@ -55,50 +55,45 @@ public function form(Request $request)
 
 public function process(Request $request)
 {
-    $tahun  = $request->input('tahun', date('Y'));
-    $action = $request->input('action');
-
-  if ($action === 'draft') {
-        return redirect()->back()->with('success', 'Draft penilaian berhasil diperbarui.');
-    }
+    $tahun = $request->input('tahun', date('Y'));
+    $user = Auth::user();
 
     try {
         DB::beginTransaction();
+        $userAllowedIds = explode(',', $user->no_id ?? '');
+        $userAllowedIds = array_map('trim', $userAllowedIds);
 
-       DB::table('penilaian_kriteria')
+        DB::table('penilaian_kriteria')
             ->where('tahun', $tahun)
-            ->update(['status' => 'final']);
- DB::table('penilaian_indikator') 
-  ->where('tahun', $tahun)
-            ->update(['status' => 'final']);
-       $result = PenilaianHelper::calculateIndices($tahun);
+            ->whereIn('id_indikator', function($query) use ($userAllowedIds) {
+                $query->select('id_indikator')
+                      ->from('indikator')
+                      ->whereIn('nomor_indikator', $userAllowedIds);
+            })
+            ->update(['status' => 'draft']);
 
-        $aspek_values = !empty($result['aspek']) ? array_values($result['aspek']) : [0];
-        $domain_values = !empty($result['domain']) ? array_values($result['domain']) : [0];
+        $totalIndikator = DB::table('indikator')->where('tahun', $tahun)->count();
+        $totalFinal = DB::table('penilaian_kriteria')
+            ->where('tahun', $tahun)
+            ->where('status', 'draft')
+            ->count();
 
-        $aspek_avg  = array_sum($aspek_values) / count($aspek_values);
-        $domain_avg = array_sum($domain_values) / count($domain_values);
-
-       DB::table('hasil_indeks')->updateOrInsert(
-            ['tahun' => $tahun],
-            [
-                'indeks_aspek'  => round($aspek_avg, 2),
-                'indeks_domain' => round($domain_avg, 2),
-                'indeks_spbe'   => $result['spbe'] ?? 0,
-                'predikat'      => $result['predikat'] ?? 'Kurang',
-                'updated_at'    => now()
-            ]
-        );
+        if ($totalFinal >= $totalIndikator) {
+            DB::table('penilaian_kriteria')->where('tahun', $tahun)->update(['status' => 'final']);
+            DB::table('penilaian_indikator')->where('tahun', $tahun)->update(['status' => 'final']);
+            
+            $result = PenilaianHelper::calculateIndices($tahun);
+            
+            DB::commit();
+            return response()->json(['message' => 'Lengkap! Seluruh penilaian tahun ' . $tahun . ' telah dikirim ke Verifikator.'], 200);
+        }
 
         DB::commit();
-        
-        return redirect()->route('penilaian.form', ['tahun' => $tahun])
-                         ->with('success', 'Penilaian SPBE Tahun ' . $tahun . ' Berhasil Difinalisasi!');
+        return response()->json(['message' => 'Berhasil! Jatah Unit Kerja Anda telah difinalisasi. Menunggu unit kerja lain melengkapi.'], 200);
 
     } catch (\Exception $e) {
         DB::rollBack();
-        Log::error("Finalisasi Gagal: " . $e->getMessage());
-        return redirect()->back()->with('error', 'Gagal memproses finalisasi: ' . $e->getMessage());
+        return response()->json(['message' => 'Gagal: ' . $e->getMessage()], 500);
     }
 }
   
@@ -219,7 +214,7 @@ public function targetP2(Request $request)
 
    
     $finalizedYears = DB::table('penilaian_kriteria')
-        ->where('status', 'final')
+      ->whereIn('status_target',['draft', 'final', 'verified'])
         ->distinct()
         ->pluck('tahun')
         ->toArray();
@@ -261,7 +256,7 @@ foreach ($aspeksInYear as $asp) {
         DB::table('penilaian_kriteria')
             ->where('tahun', $tahun)
             ->where('nilai_target', '>', 0)
-            ->update(['status' => 'final']);
+            ->update(['status_target' => 'draft']);
 
        $this->sinkronisasiBobot($tahun);
         $hasil = PenilaianHelper::calculateTarget($tahun);
@@ -282,7 +277,6 @@ foreach ($aspeksInYear as $asp) {
         return back()->with('error', $e->getMessage());
     }
 }
-
 public function sinkronisasiBobot($tahun)
 {
     $aspeks = DB::table('aspek')->where('tahun', $tahun)->get();
@@ -319,19 +313,18 @@ public function sinkronisasiBobot($tahun)
 }
 public function finalisasiVerifikator(Request $request)
 {
-    $tahun = $request->input('tahun', date('Y'));
-
+    $tahun = $request->input('tahun');
     try {
         DB::beginTransaction();
 
         DB::table('penilaian_kriteria')
             ->where('tahun', $tahun)
-            ->update(['status' => 'final']);
+            ->update(['status_vrifU' => 'final']);
 
         $hasil = PenilaianHelper::calculateVerifikator($tahun);
 
         DB::commit();
-        return redirect()->back()->with('success', "Skor Verifikator Berhasil Diupdate: " . $hasil['spbe_verif']);
+        return redirect()->back()->with('success', "Data Berhasil Dikunci!");
     } catch (\Exception $e) {
         DB::rollBack();
         return redirect()->back()->with('error', $e->getMessage());

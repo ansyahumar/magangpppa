@@ -1,4 +1,3 @@
-
 <style>
 
     .content-preview table, .ck-content table {
@@ -99,10 +98,10 @@
                 </div>
 
                 <div class="flex gap-3 pt-6 border-t dark:border-gray-700">
-                    <button @click="mode = 'edit'; $nextTick(() => initPenjelasanEditors())" 
-                            class="flex-1 px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold transition-all active:scale-95 flex items-center justify-center gap-2">
-                        <i class="fa-solid fa-pen-to-square"></i> Edit Referensi
-                    </button>
+                    <button @click="mode = 'edit'; $nextTick(() => initPenjelasanEditors(formData))" 
+        class="flex-1 px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold transition-all active:scale-95 flex items-center justify-center gap-2">
+    <i class="fa-solid fa-pen-to-square"></i> Edit Referensi
+</button>
                     
                     <template x-if="activeIndikator?.penjelasan">
                         <form :action="'/penjelasan/' + activeIndikator.penjelasan.id_penjelasan_penulisan + '/delete'" method="POST" onsubmit="return confirm('Hapus referensi ini?')">
@@ -152,52 +151,61 @@
 </div>
 
 <script>
-    function initPenjelasanEditors() {
+    function initPenjelasanEditors(dataAlpine) {
         const config = { 
             toolbar: ['heading', '|', 'bold', 'italic', 'bulletedList', 'numberedList', 'insertTable', 'undo', 'redo'],
             table: { contentToolbar: ['tableColumn', 'tableRow', 'mergeTableCells'] }
         };
         
+        const initialPenjelasan = dataAlpine.penjelasan_kriteria || '';
+        const initialTatacara = dataAlpine.tatacara_penilaian || '';
         const pEl = document.querySelector('#editorPenjelasan');
         const tEl = document.querySelector('#editorTatacara');
 
+        if (!pEl || !tEl) return;
+
         if (!window.editorPenjelasanInst) {
-            ClassicEditor.create(pEl, config).then(ed => { 
-                window.editorPenjelasanInst = ed; 
-                ed.setData(pEl.value || ''); 
-            });
+            ClassicEditor.create(pEl, config)
+                .then(ed => { 
+                    window.editorPenjelasanInst = ed; 
+                    ed.setData(initialPenjelasan);
+                })
+                .catch(err => console.error(err));
         } else {
-            window.editorPenjelasanInst.setData(pEl.value || '');
+            window.editorPenjelasanInst.setData(initialPenjelasan);
         }
 
         if (!window.editorTatacaraInst) {
-            ClassicEditor.create(tEl, config).then(ed => { 
-                window.editorTatacaraInst = ed; 
-                ed.setData(tEl.value || ''); 
-            });
+            ClassicEditor.create(tEl, config)
+                .then(ed => { 
+                    window.editorTatacaraInst = ed; 
+                    ed.setData(initialTatacara);
+                })
+                .catch(err => console.error(err));
         } else {
-            window.editorTatacaraInst.setData(tEl.value || '');
+            window.editorTatacaraInst.setData(initialTatacara);
         }
     }
 
-document.addEventListener('submit', function (e) {
-    if (e.target.id === 'formPenjelasanAdmin') {
-        const dataP = window.editorPenjelasanInst ? window.editorPenjelasanInst.getData() : '';
-        const dataT = window.editorTatacaraInst ? window.editorTatacaraInst.getData() : '';
+    document.addEventListener('submit', function (e) {
+        if (e.target.id === 'formPenjelasanAdmin') {
+            const dataP = window.editorPenjelasanInst ? window.editorPenjelasanInst.getData() : '';
+            const dataT = window.editorTatacaraInst ? window.editorTatacaraInst.getData() : '';
 
-        if (!dataP.trim() || !dataT.trim()) {
-            e.preventDefault();
-            Swal.fire({ icon: 'error', title: 'Oops...', text: 'Semua kolom wajib diisi!' });
-            return;
+            if (!dataP.trim() || !dataT.trim()) {
+                e.preventDefault();
+                Swal.fire({ icon: 'error', title: 'Oops...', text: 'Semua kolom wajib diisi!' });
+                return;
+            }
+
+            document.querySelector('#editorPenjelasan').value = dataP;
+            document.querySelector('#editorTatacara').value = dataT;
+            
+            Swal.fire({ 
+                title: 'Sedang menyimpan...', 
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading() 
+            });
         }
-
-        document.querySelector('#editorPenjelasan').value = dataP;
-        document.querySelector('#editorTatacara').value = dataT;
-        Swal.fire({ 
-            title: 'Sedang menyimpan...', 
-            allowOutsideClick: false,
-            didOpen: () => Swal.showLoading() 
-        });
-    }
-});
+    });
 </script>
