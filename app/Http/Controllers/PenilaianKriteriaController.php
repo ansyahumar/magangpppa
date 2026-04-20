@@ -217,8 +217,18 @@ DB::table('penilaian_indikator')->updateOrInsert(
         $existingCatatan = DB::table('catatan_kriteria')
             ->where(['id_indikator' => $id_indikator, 'tahun' => $tahun])
             ->first();
-
         $buktiLama = $existingCatatan ? json_decode($existingCatatan->bukti ?? '[]', true) : [];
+        $removedIndexes = $cData['removed_indexes'] ?? [];
+        
+        if (!empty($removedIndexes) && is_array($removedIndexes)) {
+            foreach ($removedIndexes as $index) {
+                if (isset($buktiLama[$index])) {
+                    unset($buktiLama[$index]);
+                }
+            }
+            $buktiLama = array_values($buktiLama);
+        }
+
         $linksBaru = $cData['links'] ?? [];
         $filesBaru = [];
 
@@ -230,16 +240,16 @@ DB::table('penilaian_indikator')->updateOrInsert(
             }
         }
 
-        $totalBukti = array_values(array_unique(array_filter(array_merge($linksBaru, $filesBaru, $buktiLama))));
+        $totalBukti = array_values(array_unique(array_filter(array_merge($buktiLama, $linksBaru, $filesBaru))));
 
         DB::table('catatan_kriteria')->updateOrInsert(
-            ['id_indikator' => $id_indikator, 'tahun' => $tahun,],
+            ['id_indikator' => $id_indikator, 'tahun' => $tahun],
             [
                 'nama_catatankriteria' => $cData['nama_catatankriteria'] ?? ($existingCatatan->nama_catatankriteria ?? ''),
                 'pencapaian' => $pencapaianInput ?? ($existingCatatan->pencapaian ?? ''),
                 'bukti' => json_encode($totalBukti),
                 'updated_at' => now(),
-                'catatan_external'     => $request->input('catatan_external') ?? ($existingCatatan->catatan_external ?? ''),
+                'catatan_external' => $request->input('catatan_external') ?? ($existingCatatan->catatan_external ?? ''),
                 'created_at' => $existingCatatan ? $existingCatatan->created_at : now()
             ]
         );

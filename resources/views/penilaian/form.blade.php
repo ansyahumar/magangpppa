@@ -178,6 +178,29 @@
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
+    let buktiStore = {}; 
+    let activeIndikatorId = null;
+    let activeNomorUrut = null;
+    let buktiClicked = false;
+    function removeNewBukti(catId, index, type, element) {
+    if (buktiStore[catId] && buktiStore[catId][type]) {
+        buktiStore[catId][type].splice(index, 1);
+    }
+
+    const wrapper = element.parentElement;
+    if (wrapper) {
+        wrapper.remove();
+    }
+
+    const displayDiv = document.getElementById(`display-${catId}`);
+    const remainingButtons = displayDiv.querySelectorAll(`.btn-remove-new-${type}`);
+    
+    remainingButtons.forEach((btn, i) => {
+        btn.setAttribute('onclick', `removeNewBukti('${catId}', ${i}, '${type}', this)`);
+    });
+    
+    buktiClicked = true;
+}
 async function finalisasiUser() {
     try {
         const tahun = document.getElementById('global-select-tahun').value;
@@ -239,11 +262,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const selectTahun = document.getElementById('global-select-tahun');
     const tahunAktif = "{{ $tahun }}"; 
     const userRole = "{{ Auth::user()->role }}";
-
-    let buktiStore = {}; 
-    let activeIndikatorId = null;
-    let activeNomorUrut = null;
-    let buktiClicked = false;
 
 async function showModal(indikatorId, nomorUrut) {
     activeIndikatorId = indikatorId;
@@ -409,7 +427,7 @@ async function showModal(indikatorId, nomorUrut) {
                         ` : '<p class="text-[10px] text-gray-400 italic">Bukti dikunci.</p>'}
                         <div id="display-${cat.id_catatan}" class="mt-2 flex flex-wrap gap-1">`;
 
-        try {
+try {
             const buktiArray = JSON.parse(cat.bukti || '[]');
             buktiArray.forEach((b, index) => {
                 if (!b) return;
@@ -419,10 +437,19 @@ async function showModal(indikatorId, nomorUrut) {
                 
                 const theme = isUrl ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-blue-50 text-blue-700 border-blue-200';
                 const icon = isUrl ? 'fa-link' : 'fa-file-pdf';
+                
                 html += `
-                    <a href="${finalUrl}" target="_blank" class="inline-flex items-center px-2 py-1 rounded-md border ${theme} text-[9px] font-bold shadow-sm hover:opacity-80">
-                        <i class="fa-solid ${icon} mr-1"></i> ${isUrl ? 'Link' : 'File'} ${index + 1}
-                    </a>`;
+                    <div class="relative group inline-flex items-center">
+                        <a href="${finalUrl}" target="_blank" class="inline-flex items-center px-2 py-1 rounded-md border ${theme} text-[9px] font-bold shadow-sm hover:opacity-80">
+                            <i class="fa-solid ${icon} mr-1"></i> ${isUrl ? 'Link' : 'File'} ${index + 1}
+                        </a>
+                        ${lockNotes === '' ? `
+                            <button type="button" class="btn-remove-existing absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] shadow-sm hover:bg-red-700 transition z-10" 
+                                data-id="${cat.id_catatan}" data-index="${index}">
+                                ×
+                            </button>
+                        ` : ''}
+                    </div>`;
             });
             if (buktiArray.length === 0) html += '<span class="text-[9px] text-gray-400 italic">Belum ada bukti lampiran.</span>';
         } catch (e) {
@@ -441,18 +468,49 @@ async function showModal(indikatorId, nomorUrut) {
         content.innerHTML = html;
         attachInternalListeners();
     }
-
+let removedBuktiStore = {};
     function attachInternalListeners() {
-        content.querySelectorAll('.kriteria-cb').forEach(cb => {
-            cb.addEventListener('change', function() {
-                if (this.checked) {
-                    const field = this.dataset.field;
-                    content.querySelectorAll(`.kriteria-cb[data-field="${field}"]`).forEach(other => {
-                        if (other !== this) other.checked = false;
-                    });
-                }
-            });
+       content.querySelectorAll('.kriteria-cb').forEach(cb => {
+        cb.addEventListener('change', function() {
+            if (this.checked) {
+                const field = this.dataset.field;
+                content.querySelectorAll(`.kriteria-cb[data-field="${field}"]`).forEach(other => {
+                    if (other !== this) other.checked = false;
+                });
+            }
         });
+    });
+
+    content.onclick = function(e) {
+        const btnRemove = e.target.closest('.btn-remove-existing');
+        if (btnRemove) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const catId = btnRemove.dataset.id;
+            const index = btnRemove.dataset.index;
+            
+            if (!removedBuktiStore[catId]) removedBuktiStore[catId] = [];
+            removedBuktiStore[catId].push(index);
+            
+            btnRemove.closest('.relative.group').remove();
+            buktiClicked = true;
+            console.log("Dihapus dari DB (Index):", index);
+            return;
+        }
+
+        const btnRemoveNew = e.target.closest('.btn-remove-new-action');
+        if (btnRemoveNew) {
+            e.preventDefault();
+            const { catid, index, type } = btnRemoveNew.dataset;
+            
+            if (buktiStore[catid] && buktiStore[catid][type]) {
+                buktiStore[catid][type][index] = null; 
+            }
+            btnRemoveNew.parentElement.remove();
+            return;
+        }
+    };
 
         const addBtn = content.querySelector('.btn-add-bukti');
         if (addBtn) {
@@ -462,24 +520,40 @@ async function showModal(indikatorId, nomorUrut) {
                 const fileInput = content.querySelector('.bukti-file');
                 const linkInput = content.querySelector('.bukti-link');
                 const displayDiv = document.getElementById(`display-${catId}`);
+                
                 if (!buktiStore[catId]) buktiStore[catId] = { files: [], links: [] };
-
                 if (fileInput.files.length > 0) {
                     Array.from(fileInput.files).forEach(file => {
+                        const fileIdx = buktiStore[catId].files.length;
                         buktiStore[catId].files.push(file);
-                        const tag = document.createElement('span');
-                        tag.className = "px-2 py-1 rounded-full bg-orange-100 text-orange-700 text-[10px]";
-                        tag.innerText = "New File";
-                        displayDiv.appendChild(tag);
+                        
+const tag = document.createElement('div');
+tag.className = "relative inline-flex items-center px-2 py-1 rounded-full bg-orange-100 text-orange-700 text-[10px] font-bold gap-1 m-1";
+tag.innerHTML = `
+    New File 
+    <button type="button" class="btn-remove-new-files text-red-600 font-extrabold ml-1 hover:text-red-900" 
+        onclick="removeNewBukti('${catId}', ${fileIdx}, 'files', this)">
+        ×
+    </button>`;
+displayDiv.appendChild(tag);
                     });
                     fileInput.value = '';
                 }
+
                 if (linkInput.value.trim() !== '') {
-                    buktiStore[catId].links.push(linkInput.value.trim());
-                    const tag = document.createElement('span');
-                    tag.className = "px-2 py-1 rounded-full bg-green-100 text-green-700 text-[10px]";
-                    tag.innerText = "New Link";
-                    displayDiv.appendChild(tag);
+                    const linkVal = linkInput.value.trim();
+                    const linkIdx = buktiStore[catId].links.length;
+                    buktiStore[catId].links.push(linkVal);
+                    
+const tagLink = document.createElement('div');
+tagLink.className = "relative inline-flex items-center px-2 py-1 rounded-full bg-green-100 text-green-700 text-[10px] font-bold gap-1 m-1";
+tagLink.innerHTML = `
+    New Link 
+    <button type="button" class="btn-remove-new-links text-red-600 font-extrabold ml-1 hover:text-red-900" 
+        onclick="removeNewBukti('${catId}', ${linkIdx}, 'links', this)">
+        ×
+    </button>`;
+displayDiv.appendChild(tagLink);
                     linkInput.value = '';
                 }
             };
@@ -534,7 +608,8 @@ async function showModal(indikatorId, nomorUrut) {
                 [catId]: {
                     id_catatan: catId,
                     nama_catatankriteria: catatanValue,
-                    links: buktiStore[catId] ? buktiStore[catId].links : []
+                    links: buktiStore[catId] ? buktiStore[catId].links : [],
+                    removed_indexes: removedBuktiStore[catId] || []
                 }
             };
 
@@ -575,5 +650,6 @@ async function showModal(indikatorId, nomorUrut) {
 
     document.getElementById('close-modal').onclick = () => modal.classList.add('hidden');
 });
+
 </script>
 </x-app-layout>
