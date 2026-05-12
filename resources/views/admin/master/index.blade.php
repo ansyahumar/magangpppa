@@ -5,14 +5,19 @@
 
 @section('content')
 
-<div class="flex items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border mb-6">
+<div class="flex flex-wrap items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border mb-6">
     <div>
-        <label class="text-xs font-bold text-gray-400 uppercase block mb-1">Kelola Tahun</label>
-        <form action="{{ route('admin.master') }}" method="GET" id="form-tahun">
-            <select name="tahun" onchange="this.form.submit()" class="rounded-lg border-gray-300 font-bold text-blue-600">
+        <label class="text-[10px] font-bold text-gray-400 uppercase block mb-1">Kelola Tahun</label>
+        <form action="{{ route('admin.master') }}" method="GET" id="form-filter" class="flex gap-2">
+            <select name="tahun" onchange="this.form.submit()" class="rounded-lg border-gray-300 font-bold text-blue-600 focus:ring-blue-500">
                 @foreach($availableYears as $y)
                     <option value="{{ $y }}" {{ $tahunDipilih == $y ? 'selected' : '' }}>Tahun {{ $y }}</option>
                 @endforeach
+            </select>
+
+            <select name="modul" onchange="this.form.submit()" class="rounded-lg border-gray-300 font-bold text-emerald-600 focus:ring-emerald-500 uppercase">
+                <option value="spbe" {{ $modul == 'spbe' ? 'selected' : '' }}>SPBE</option>
+                <option value="pemdi" {{ $modul == 'pemdi' ? 'selected' : '' }}>PEMDI</option>
             </select>
         </form>
     </div>
@@ -26,9 +31,9 @@
         <form action="{{ route('admin.master.copy') }}" method="POST">
             @csrf
             <input type="hidden" name="tahun" value="{{ $tahunNext }}">
-            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-blue-500/30 transition-all active:scale-95">
+            <input type="hidden" name="modul" value="{{ $modul }}"> <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg transition-all active:scale-95">
                 <i class="fa-solid fa-copy"></i>
-                Buka & Salin Struktur ke {{ $tahunNext }}
+                Salin Struktur {{ strtoupper($modul) }} ke {{ $tahunNext }}
             </button>
         </form>
     </div>
@@ -57,6 +62,7 @@
 <div
     x-data="{
         openModal: null,
+        currentModul: '{{ $modul }}',
         activeIndikator: { id: null, nomor: '-', nama: '', kriteria: [] },
         activeAspek: { id: null, nama: '' },
         mode: 'view',
@@ -268,20 +274,26 @@ collapseAll() {
 </button>
 
            <button @click="$dispatch('open-modal-edit', { 
-            id_indikator: {{ $i->id_indikator }}, 
-            id_aspek: {{ $a->id_aspek }}, 
-            nama_indikator: '{{ addslashes($i->nama_indikator) }}' 
-        })" 
-        class="px-3 py-2 bg-amber-50 ...">
-    Edit
+    id_indikator: {{ $i->id_indikator }}, 
+    id_aspek: {{ $a->id_aspek }}, 
+    nama_indikator: '{{ addslashes($i->nama_indikator) }}' 
+})" 
+class="p-2 text-amber-600 bg-amber-50 hover:bg-amber-600 hover:text-white rounded-lg transition-all duration-200 shadow-sm border border-amber-100 active:scale-95"
+title="Edit Indikator">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+    </svg>
 </button>
 
             <button @click="$dispatch('open-modal-delete', { 
-            id_indikator: {{ $i->id_indikator }}, 
-            nama_indikator: '{{ addslashes($i->nama_indikator) }}' 
-        })" 
-        class="px-3 py-2 bg-red-50 ...">
-    Hapus
+    id_indikator: {{ $i->id_indikator }}, 
+    nama_indikator: '{{ addslashes($i->nama_indikator) }}' 
+})" 
+class="p-2 text-red-600 bg-red-50 hover:bg-red-600 hover:text-white rounded-lg transition-all duration-200 shadow-sm border border-red-100 active:scale-95"
+title="Hapus Indikator">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+    </svg>
 </button>
         </div>
     </div>
@@ -298,26 +310,29 @@ collapseAll() {
 </div>
 <template x-teleport="body">
     <div id="modal-container">
+        {{-- 1. Modal Global (Selalu ada meskipun data kosong) --}}
         @include('admin.master.modals.kriteria')
         @include('admin.master.modals.penjelasan')
         @include('admin.master.modals.indikator')
+        
+        {{-- Pastikan file ini berisi modal dengan x-show="openModal === 'add-domain'" --}}
+        @include('admin.master.modals.domain') 
 
+        {{-- 2. Modal Spesifik Data (Hanya muncul jika ada data) --}}
         @foreach($domain as $d)
+            {{-- Modal Edit Domain --}}
             @include('admin.master.modals.domain', ['d' => $d])
+            
+            {{-- Modal Tambah Aspek untuk Domain ini --}}
+            @include('admin.master.modals.aspek-add', ['d' => $d])
 
             @foreach($d->aspek as $a)
+                {{-- Modal Edit Aspek --}}
                 @include('admin.master.modals.aspek', ['a' => $a, 'd' => $d])
+                {{-- Modal Tambah Indikator untuk Aspek ini --}}
+                @include('admin.master.modals.indikator-add', ['a' => $a]) 
             @endforeach
         @endforeach
-        @foreach($domain as $d)
-    @include('admin.master.modals.domain', ['d' => $d])
-    @include('admin.master.modals.aspek-add', ['d' => $d])
-
-    @foreach($d->aspek as $a)
-        @include('admin.master.modals.aspek', ['a' => $a, 'd' => $d])
-        @include('admin.master.modals.indikator-add', ['a' => $a]) 
-    @endforeach
-@endforeach
     </div>
 </template>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
@@ -354,47 +369,46 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    const initAspekSortable = () => {
-        document.querySelectorAll('.sortable-aspek').forEach(el => {
-            new Sortable(el, {
-                group: 'shared-aspek', 
-                animation: 150,
-                handle: '.drag-handle',
-                filter: 'button',
-                ghostClass: 'bg-blue-50',
-                onEnd: function (evt) {
-                    const aspekId = evt.item.getAttribute('data-aspek-id');
-                    const newDomainId = evt.to.getAttribute('data-domain-id');
-                    
-                    updatePosition('/admin/master/aspek/move', {
-                        id_aspek: aspekId,
-                        id_domain: newDomainId
-                    });
-                    refreshSemuaNomor();
-                }
-            });
+const initAspekSortable = () => {
+    document.querySelectorAll('.sortable-aspek').forEach(el => {
+        new Sortable(el, {
+            group: 'shared-aspek', 
+            animation: 150,
+            handle: '.drag-handle',
+            onEnd: function (evt) {
+                const newDomainId = evt.to.getAttribute('data-domain-id');
+                const orderIds = Array.from(evt.to.querySelectorAll('.aspek-item'))
+                                      .map(el => el.getAttribute('data-aspek-id'));
+                
+                updatePosition('/admin/master/aspek/move', {
+                    id_domain: newDomainId,
+                    order: orderIds
+                });
+                refreshSemuaNomor();
+            }
         });
-    }
+    });
+}
 
-    const initIndikatorSortable = () => {
-        document.querySelectorAll('.sortable-indikator').forEach(el => {
-            new Sortable(el, {
-                group: 'shared-indikator',
-                animation: 150,
-                ghostClass: 'bg-emerald-50',
-                onEnd: function (evt) {
-                    const indikatorId = evt.item.getAttribute('data-indikator-id');
-                    const newAspekId = evt.to.getAttribute('data-aspek-id');
-                    
-                    updatePosition('/admin/master/indikator/move', {
-                        id_indikator: indikatorId,
-                        id_aspek: newAspekId
-                    });
-                    refreshSemuaNomor();
-                }
-            });
+const initIndikatorSortable = () => {
+    document.querySelectorAll('.sortable-indikator').forEach(el => {
+        new Sortable(el, {
+            group: 'shared-indikator',
+            animation: 150,
+            onEnd: function (evt) {
+                const newAspekId = evt.to.getAttribute('data-aspek-id');
+                const orderIds = Array.from(evt.to.querySelectorAll('.indikator-item-drag'))
+                                      .map(el => el.getAttribute('data-indikator-id'));
+                
+                updatePosition('/admin/master/indikator/move', {
+                    id_aspek: newAspekId,
+                    order: orderIds
+                });
+                refreshSemuaNomor();
+            }
         });
-    }
+    });
+}
 
     initAspekSortable();
     initIndikatorSortable();

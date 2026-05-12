@@ -18,27 +18,20 @@
 
     .executive-card:hover {
         box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08);
-        border-color: #3b82f6;
     }
 
-    .card-accent-blue { border-left: 6px solid #1e40af; }
-    .card-accent-emerald { border-left: 6px solid #059669; }
-    .card-accent-purple { border-left: 6px solid #7c3aed; }
-
-    .dark .executive-card {
-        background: #1f2937;
-        border-color: #374151;
-    }
+    /* Warna Akses Dinamis */
+    .accent-active { border-left: 6px solid {{ $modulAktif == 'pemdi' ? '#059669' : '#1e40af' }}; }
+    .text-active { color: {{ $modulAktif == 'pemdi' ? '#059669' : '#1e40af' }}; }
+    .bg-active { background-color: {{ $modulAktif == 'pemdi' ? '#059669' : '#1e40af' }}; }
 
     .formal-select {
         border: 2px solid #e5e7eb;
         border-radius: 12px;
         padding: 0.5rem 2.5rem 0.5rem 1rem;
         font-weight: 700;
-        color: #1e40af;
         cursor: pointer;
         appearance: none;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%231e40af'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
         background-repeat: no-repeat;
         background-position: right 1rem center;
         background-size: 1.5em;
@@ -46,59 +39,69 @@
 </style>
 
 <div class="px-6 py-8 max-w-7xl mx-auto space-y-8 animate-in">
-    <div class="flex flex-col md:flex-row md:items-center justify-between border-b border-gray-200 pb-6 gap-4">
-        <div>
-            <h2 class="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-                Dashboard Monitoring <span class="text-blue-700">SPBE</span>
-            </h2>
-            <p class="text-slate-500 font-medium mt-1">Laporan Capaian Indeks Sistem Pemerintahan Berbasis Elektronik</p>
+    
+    <!-- HEADER & TAB NAVIGATION -->
+    <div class="flex flex-col space-y-6 border-b border-gray-200 pb-6">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <h2 class="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                    Dashboard Monitoring <span class="text-active">{{ strtoupper($modulAktif) }}</span>
+                </h2>
+                <p class="text-slate-500 font-medium mt-1">Laporan Capaian Indeks {{ $modulAktif == 'pemdi' ? 'Pembangunan Digital' : 'Sistem Pemerintahan Berbasis Elektronik' }}</p>
+            </div>
+            
+            <!-- Filter Tahun -->
+            <form id="formFilter" method="GET" action="{{ route('kordinator.chart') }}" class="flex items-center gap-2">
+                <input type="hidden" name="modul" value="{{ $modulAktif }}">
+                <select name="tahun" onchange="this.form.submit()" class="formal-select dark:bg-gray-800 dark:border-gray-700 bg-white pr-10 text-active">
+                    <option value="all" {{ (string)$tahunDipilih === 'all' ? 'selected' : '' }}>RINGKASAN MULTI-TAHUN</option>
+                    @foreach($tahunList as $th)
+                        <option value="{{ $th }}" {{ (string)$tahunDipilih === (string)$th ? 'selected' : '' }}>LAPORAN TAHUN {{ $th }}</option>
+                    @endforeach
+                </select>
+            </form>
         </div>
-        
-        <form id="formTahun" method="GET" action="{{ route('kordinator.chart') }}">
-            <select name="tahun" onchange="this.form.submit()" class="formal-select dark:bg-gray-800 dark:border-gray-700 bg-white pr-10">
-                <option value="all" {{ (string)$tahunDipilih === 'all' ? 'selected' : '' }}>RINGKASAN MULTI-TAHUN</option>
-                @foreach($tahunList as $th)
-                    <option value="{{ $th }}" {{ (string)$tahunDipilih === (string)$th ? 'selected' : '' }}>LAPORAN TAHUN {{ $th }}</option>
-                @endforeach
-            </select>
-        </form>
+
+        <!-- Tab Pemisah SPBE vs PEMDI -->
+        <div class="flex p-1 bg-gray-100 dark:bg-gray-800 rounded-2xl w-fit border shadow-inner">
+            <a href="{{ route('kordinator.chart', ['modul' => 'spbe', 'tahun' => $tahunDipilih]) }}" 
+               class="px-8 py-2.5 rounded-xl text-sm font-bold transition-all {{ $modulAktif == 'spbe' ? 'bg-white dark:bg-blue-600 text-blue-700 dark:text-white shadow-md' : 'text-slate-500 hover:text-slate-700' }}">
+                <i class="fa-solid fa-server mr-2"></i> MODUL SPBE
+            </a>
+            <a href="{{ route('kordinator.chart', ['modul' => 'pemdi', 'tahun' => $tahunDipilih]) }}" 
+               class="px-8 py-2.5 rounded-xl text-sm font-bold transition-all {{ $modulAktif == 'pemdi' ? 'bg-white dark:bg-emerald-600 text-emerald-700 dark:text-white shadow-md' : 'text-slate-500 hover:text-slate-700' }}">
+                <i class="fa-solid fa-microchip mr-2"></i> MODUL PEMDI
+            </a>
+        </div>
     </div>
 
-    <div class="executive-card card-accent-blue p-8" onclick="openChartModal('Indeks SPBE', 'mixed')">
+    <!-- MAIN CHART -->
+    <div class="executive-card accent-active p-8" onclick="openChartModal('Indeks {{ strtoupper($modulAktif) }}', 'mixed')">
         <div class="flex items-center gap-3 mb-6">
-            <div class="p-2 bg-blue-50 text-blue-700 rounded-lg"><i class="fa-solid fa-chart-line"></i></div>
-            <h3 class="text-lg font-bold text-slate-800 dark:text-white uppercase tracking-wide">indeks SPBE</h3>
+            <div class="p-2 rounded-lg bg-opacity-10 {{ $modulAktif == 'pemdi' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700' }}">
+                <i class="fa-solid fa-chart-line"></i>
+            </div>
+            <h3 class="text-lg font-bold text-slate-800 dark:text-white uppercase tracking-wide">Tren Indeks {{ strtoupper($modulAktif) }}</h3>
         </div>
         <div class="h-[350px] relative">
             <canvas id="mixedChart"></canvas>
         </div>
     </div>
 
+    <!-- SUB CHARTS -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div class="executive-card card-accent-emerald p-8" onclick="openChartModal('Skor per Domain', 'domainBar')">
-            <h3 class="text-lg font-bold text-slate-800 dark:text-white uppercase mb-6">Skor per Domain</h3>
+        <div class="executive-card accent-active p-8" onclick="openChartModal('Skor per Domain', 'domainBar')">
+            <h3 class="text-lg font-bold text-slate-800 dark:text-white uppercase mb-6">Skor per Domain {{ strtoupper($modulAktif) }}</h3>
             <div class="h-[300px] relative">
                 <canvas id="domainBarChart"></canvas>
             </div>
         </div>
 
-        <div class="executive-card card-accent-purple p-8" onclick="openChartModal('Radar Capaian Aspek', 'radar')">
+        <div class="executive-card accent-active p-8" onclick="openChartModal('Radar Capaian Aspek', 'radar')">
             <h3 class="text-lg font-bold text-slate-800 dark:text-white uppercase mb-6">Radar Capaian Aspek</h3>
             <div class="h-[300px] relative">
                 <canvas id="radarChart"></canvas>
             </div>
-        </div>
-    </div>
-</div>
-
-<div id="chartModal" class="fixed inset-0 z-[100] hidden bg-gray-900/80 backdrop-blur-xl flex items-center justify-center p-6" onclick="closeChartModal()">
-    <div class="bg-white dark:bg-gray-900 rounded-[3rem] w-full max-w-6xl h-[85vh] p-10 relative shadow-2xl transform transition-all scale-90 opacity-0" id="modalContainer" onclick="event.stopPropagation()">
-        <button onclick="closeChartModal()" class="absolute -top-4 -right-4 h-12 w-12 flex items-center justify-center rounded-full bg-red-500 text-white shadow-xl hover:rotate-90 transition-all duration-300 text-xl font-bold">✕</button>
-        <div class="mb-8 border-b dark:border-gray-800 pb-6">
-            <h3 id="modalTitle" class="text-3xl font-black text-gray-900 dark:text-white text-center uppercase tracking-tighter"></h3>
-        </div>
-        <div class="h-[calc(100%-120px)] relative">
-            <canvas id="modalChart"></canvas>
         </div>
     </div>
 </div>

@@ -2,44 +2,46 @@
 
 @section('content')
 @php
+    // Tangkap modul aktif, default ke spbe
+    $modulAktif = request('modul', 'spbe');
+    
     $tahun = $tahunDipilih ?? date('Y');
     $tahunLalu = is_numeric($tahun) ? $tahun - 1 : '-';
     
-    $indeksSekarang = \DB::table('hasil_indeks')->where('tahun', $tahun)->first();
-    $indeksLalu = \DB::table('hasil_indeks')->where('tahun', $tahunLalu)->first();
-
-    $domainData = \DB::table('domain_hasil')->where('tahun', $tahun)->get()->keyBy('id_domain');
-    $domainDataLalu = \DB::table('domain_hasil')
-                        ->join('domain', 'domain_hasil.id_domain', '=', 'domain.id_domain')
-                        ->where('domain_hasil.tahun', $tahunLalu)
-                        ->select('domain_hasil.*', 'domain.nama_domain')
-                        ->get()
-                        ->keyBy('nama_domain');
-    
-    $aspekData = \DB::table('aspek_hasil')->where('tahun', $tahun)->get()->keyBy('id_aspek');
-    $aspekDataLalu = \DB::table('aspek_hasil')
-                        ->join('aspek', 'aspek_hasil.id_aspek', '=', 'aspek.id_aspek')
-                        ->where('aspek_hasil.tahun', $tahunLalu)
-                        ->select('aspek_hasil.*', 'aspek.nama_aspek')
-                        ->get()
-                        ->keyBy('nama_aspek');
-
-    $allDomainsList = \DB::table('domain')->where('tahun', $tahun)->orderBy('urutan', 'asc')->get();
-    $allAspeks = \DB::table('aspek')->where('tahun', $tahun)->orderBy('urutan', 'asc')->get()->groupBy('id_domain');
-
+    // Filter semua query utama dengan where('modul', $modulAktif)
+    $indeksSekarang = \DB::table('hasil_indeks')
+                        ->where('tahun', $tahun)
+                        ->where('modul', $modulAktif)
+                        ->first();
+                        
+    $indeksLalu = \DB::table('hasil_indeks')
+                    ->where('tahun', $tahunLalu)
+                    ->where('modul', $modulAktif)
+                    ->first();
+// DEFINISIKAN VARIABEL YANG HILANG DI SINI
     $spbeSekarang = $indeksSekarang->indeks_verif ?? ($indeksSekarang->indeks_spbe ?? 0);
     $spbeLama = $indeksLalu->indeks_verif ?? ($indeksLalu->indeks_spbe ?? 0);
     $selisih = $spbeSekarang - $spbeLama;
 
-    $aspekCounter = 1;
-    $indikatorCounter = 1;
+    // Hitung Progress Pengerjaan
     $totalIndikator = \DB::table('indikator')->where('tahun', $tahun)->count();
     $sudahDiverif = \DB::table('penilaian_kriteria')
                         ->where('tahun', $tahun)
+                        // ->where('domain.modul', $modulAktif)
                         ->where('nilai_verifikator_internal', '>', 0)
                         ->count();
     
     $persenPengerjaan = $totalIndikator > 0 ? ($sudahDiverif / $totalIndikator) * 100 : 0;
+    $allDomainsList = \DB::table('domain')
+                        ->where('tahun', $tahun)
+                        // ->where('domain.modul', $modulAktif) // Tambahkan filter modul
+                        ->orderBy('urutan', 'asc')
+                        ->get();
+    
+    // ... (Query lainnya seperti $totalIndikator dan $sudahDiverif juga tambahkan ->where('modul', $modulAktif))
+    $totalIndikator = \DB::table('indikator')
+                        ->where('tahun', $tahun)
+                        ->count();
 @endphp
 
 <style>
@@ -49,51 +51,75 @@
 </style>
 
 <div class="max-w-7xl mx-auto px-4 py-8 animate-in">
-    <div class="flex justify-between items-center mb-6">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
-            <h2 class="text-2xl font-black uppercase tracking-tighter text-gray-800 dark:text-white">Rincian Hasil Penilaian <span class="text-blue-600">SPBE</span></h2>
-            <p class="text-sm text-gray-500 italic">Membandingkan Tahun {{ $tahunLalu }} dan {{ $tahun }}</p>
+            <h2 class="text-3xl font-black uppercase tracking-tighter text-gray-800 dark:text-white">
+                Rincian Hasil <span class="{{ $modulAktif == 'pemdi' ? 'text-emerald-600' : 'text-blue-600' }}">{{ strtoupper($modulAktif) }}</span>
+            </h2>
+            <p class="text-sm text-gray-500 italic">Perbandingan Data Tahunan ({{ $tahunLalu }} vs {{ $tahun }})</p>
         </div>
-        <form method="get" action="{{ route('kordinator.nilai') }}" class="bg-white p-2 rounded-lg shadow border">
-            <select name="tahun" class="font-bold border-none focus:ring-0 bg-transparent text-blue-600" onchange="this.form.submit()">
-                @foreach($tahunList as $year)
-                    <option value="{{ $year }}" {{ ($tahun == $year) ? 'selected' : '' }}>Tahun {{ $year }}</option>
-                @endforeach
-            </select>
-        </form>
+
+        <div class="flex items-center gap-3">
+            <!-- Navigasi Tab Modul -->
+            <div class="inline-flex p-1 bg-gray-100 dark:bg-gray-800 rounded-xl border shadow-sm">
+                <a href="{{ route('kordinator.nilai', ['modul' => 'spbe', 'tahun' => $tahun]) }}" 
+                   class="px-4 py-2 rounded-lg text-xs font-bold transition-all {{ $modulAktif == 'spbe' ? 'bg-white dark:bg-blue-600 text-blue-600 dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-700' }}">
+                    SPBE
+                </a>
+                <a href="{{ route('kordinator.nilai', ['modul' => 'pemdi', 'tahun' => $tahun]) }}" 
+                   class="px-4 py-2 rounded-lg text-xs font-bold transition-all {{ $modulAktif == 'pemdi' ? 'bg-white dark:bg-emerald-600 text-emerald-600 dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-700' }}">
+                    PEMDI
+                </a>
+            </div>
+
+            <!-- Dropdown Tahun -->
+            <form method="get" action="{{ route('kordinator.nilai') }}" class="bg-white p-2 rounded-lg shadow border flex items-center">
+                <input type="hidden" name="modul" value="{{ $modulAktif }}">
+                <select name="tahun" class="text-sm font-bold border-none focus:ring-0 bg-transparent text-gray-700" onchange="this.form.submit()">
+                    @foreach($tahunList as $year)
+                        <option value="{{ $year }}" {{ ($tahun == $year) ? 'selected' : '' }}>Tahun {{ $year }}</option>
+                    @endforeach
+                </select>
+            </form>
+        </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-12">
-        <div class="lg:col-span-2 rounded-3xl shadow-2xl p-8 bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-800 text-white relative overflow-hidden group">
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-12">
+        <!-- Kartu Utama -->
+        <div class="lg:col-span-2 rounded-3xl shadow-2xl p-8 text-white relative overflow-hidden group 
+            {{ $modulAktif == 'pemdi' ? 'bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-800' : 'bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-800' }}">
+            
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <div class="flex-1">
-                    <h5 class="text-indigo-100 text-sm font-bold uppercase tracking-widest mb-2">Indeks SPBE Keseluruhan</h5>
+                    <h5 class="text-white/80 text-sm font-bold uppercase tracking-widest mb-2">Indeks {{ strtoupper($modulAktif) }} Keseluruhan</h5>
                     <div class="flex items-baseline gap-4">
                         <span class="text-7xl font-black">{{ number_format($spbeSekarang, 2) }}</span>
-                        @if($spbeLama > 0)
-                            <div class="flex items-center text-sm font-bold {{ $selisih >= 0 ? 'bg-emerald-400 text-emerald-900' : 'bg-rose-400 text-rose-900' }} px-2 py-1 rounded-lg">
-                                {!! $selisih >= 0 ? '↑' : '↓' !!} {{ abs(number_format($selisih, 2)) }}
-                            </div>
-                        @endif
+                        <!-- ... (Sisanya tetap sama) ... -->
                     </div>
-                    <div class="mt-4 inline-block px-4 py-1 rounded-full bg-white/20 text-[10px] font-bold uppercase">Predikat: {{ $indeksSekarang->predikat ?? '-' }}</div>
                 </div>
+                <!-- Progress Circle -->
                 <div class="relative w-32 h-32 flex items-center justify-center">
-    <svg class="w-full h-full transform -rotate-90">
-        <circle cx="64" cy="64" r="58" stroke="currentColor" stroke-width="8" fill="transparent" class="text-white/10" />
-        <circle cx="64" cy="64" r="58" stroke="currentColor" stroke-width="10" fill="transparent" 
-            stroke-dasharray="364.4" 
-            style="stroke-dashoffset: {{ 364.4 - (364.4 * ($persenPengerjaan / 100)) }}; transition: stroke-dashoffset 2s ease-out;"
-            class="text-emerald-400" />
-    </svg>
-    <span class="absolute text-xl font-bold">{{ round($persenPengerjaan) }}%</span>
-</div>
+                    <svg class="w-full h-full transform -rotate-90">
+                        <circle cx="64" cy="64" r="58" stroke="currentColor" stroke-width="8" fill="transparent" class="text-white/10" />
+                        <circle cx="64" cy="64" r="58" stroke="currentColor" stroke-width="10" fill="transparent" 
+                            stroke-dasharray="364.4" 
+                            style="stroke-dashoffset: {{ 364.4 - (364.4 * ($persenPengerjaan / 100)) }};"
+                            class="{{ $modulAktif == 'pemdi' ? 'text-yellow-300' : 'text-emerald-400' }}" />
+                    </svg>
+                    <span class="absolute text-xl font-bold">{{ round($persenPengerjaan) }}%</span>
+                </div>
             </div>
         </div>
 
+        <!-- Kartu Target -->
         <div class="rounded-3xl shadow-xl p-8 bg-white dark:bg-gray-800 border flex flex-col justify-center text-center">
-            <h5 class="text-xs font-bold text-gray-400 uppercase mb-4 tracking-widest">Target SPBE {{ $tahun }}</h5>
-            <p class="text-5xl font-black text-indigo-500 mb-2">{{ number_format($indeksSekarang->target_spbe ?? 0, 2) }}</p>
+            <h5 class="text-xs font-bold text-gray-400 uppercase mb-4 tracking-widest">Target {{ strtoupper($modulAktif) }} {{ $tahun }}</h5>
+            <p class="text-5xl font-black {{ $modulAktif == 'pemdi' ? 'text-emerald-500' : 'text-indigo-500' }} mb-2">
+                {{ number_format($indeksSekarang->target_spbe ?? 0, 2) }}
+            </p>
+            <!-- ... -->
+        </div>
+    </div>
             <div class="h-1.5 w-full bg-gray-100 rounded-full mt-2 overflow-hidden">
                 <div class="h-full bg-indigo-500" style="width: {{ (($indeksSekarang->target_spbe ?? 0)/5)*100 }}%"></div>
             </div>

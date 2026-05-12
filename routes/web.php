@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\P1Controller;
 use App\Http\Controllers\IndikatorController;
 use App\Http\Controllers\KordinatorController;
+use App\Http\Controllers\admin\SatuanController;
 
 
 Route::get('/dashboard-redirect', function () {
@@ -35,7 +36,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-    Route::put('password', [PasswordController::class, 'update'])->name('password.update');
 });
 
 
@@ -47,16 +47,25 @@ Route::middleware(['auth', 'verified', 'role:user'])->group(function () {
     
    });
 Route::middleware(['auth', 'verified', 'role:user'])->group(function () {
-        Route::post('/form-penilaian', [PenilaianController::class, 'process'])->name('penilaian.process');
+        // Route::post('/form-penilaian', [PenilaianController::class, 'process'])->name('penilaian.process');
         Route::get('/form-penilaian', [PenilaianController::class, 'form'])->name('penilaian.form');
+        Route::post('/penilaian/process', [PenilaianController::class, 'process'])->name('penilaian.process');
 
 });
 
 Route::middleware(['auth', 'role:verifikator'])->group(function () {
+    // Dashboard Utama
     Route::get('/verifikator/dashboard', [VerifikasiController::class, 'index'])->name('verifikator.verifikasi');
-    Route::get('/verifikator/penilaian', [VerifikasiController::class, 'index'])->name('verifikator.penilaian');
-    Route::get('/verifikator/penilaian/{tahun}', [VerifikasiController::class, 'listPenilaian'])->name('verifikator.list');
+    
+    // Perbaikan: Tambahkan parameter {modul} agar sesuai dengan link di dashboard
+    // URL akan menjadi: /verifikator/penilaian/2026/spbe
+    Route::get('/verifikator/penilaian/{tahun}/{modul}', [VerifikasiController::class, 'listPenilaian'])->name('verifikator.list');
+    
+    // Simpan hasil verifikasi per indikator
     Route::post('/verifikasi/store', [VerifikasiController::class, 'storeVerifikasi'])->name('verifikator.storeVerifikasi');
+    
+    // Tambahkan route untuk Finalisasi (kunci seluruh modul)
+    Route::post('/verifikator/finalisasi', [VerifikasiController::class, 'finalisasi_verifikator'])->name('verifikator.finalisasi');
 });
 
 
@@ -83,8 +92,10 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::post('/users', [UserController::class, 'store'])->name('users.store');
     Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
     Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
-
-
+    Route::get('/satuan', [SatuanController::class, 'index'])->name('satuan.index');
+    Route::post('/satuan', [SatuanController::class, 'store'])->name('satuan.store');
+   Route::put('/satuan/{id}', [SatuanController::class, 'update'])->name('satuan.update');
+   Route::delete('/satuan/{id}', [SatuanController::class, 'destroy'])->name('satuan.destroy');
     Route::get('/profile', function () {
         return view('admin.profile', ['user' => Auth::user()]);
     })->name('profileadmin');
@@ -118,6 +129,9 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
 
 
 Route::post('/admin/master-data/copy', [DataMasterController::class, 'copyStructure'])->name('admin.master.copy');
+// Tambahkan ini di file routes/web.php
+Route::post('/admin/finalisasi-eksternal', [PenilaianKriteriaController::class, 'finalisasiEksternal'])
+    ->name('admin.finalisasi_eksternal');
 });
 
 Route::middleware(['auth'])->group(function () {

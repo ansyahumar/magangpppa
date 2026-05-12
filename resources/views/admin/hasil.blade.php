@@ -1,25 +1,88 @@
 @extends('admin.layouts.app')
 
 @include('layouts.fav')
-<title>Hasil Penilaian SPBE | {{ $tahunDipilih }}</title>
-
+@php
+    // Definisikan di sini agar bisa dipakai di tag <title> di bawahnya
+    $modul = request('modul', 'spbe');
+    $tahun = $tahunDipilih ?? date('Y');
+@endphp
+<title>Hasil Penilaian SPBE | {{ $tahunDipilih }}</title><title>Hasil Penilaian {{ strtoupper($modul) }} | {{ $tahunDipilih }}</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-
 @section('content')
 @php
-    $tahun = $tahunDipilih ?? date('Y');
     $tahunLalu = is_numeric($tahun) ? ($tahun - 1) : (date('Y') - 1);
-    $indeksSekarang = \DB::table('hasil_indeks')->where('tahun', $tahun)->first();
-    $indeksLalu = \DB::table('hasil_indeks')->where('tahun', $tahunLalu)->first();
-    $domainHasil = \DB::table('domain_hasil')->where('tahun', $tahun)->get()->keyBy('id_domain');
-    $aspekHasil = \DB::table('aspek_hasil')->where('tahun', $tahun)->get()->keyBy('id_aspek');
-    $allDomainsList = \DB::table('domain')->where('tahun', $tahun)->orderBy('urutan', 'asc')->get();
-    $allAspeks = \DB::table('aspek')->where('tahun', $tahun)->orderBy('urutan', 'asc')->get()->groupBy('id_domain');
-    $spbeSekarang = $indeksSekarang->indeks_akhir_eksternal ?? 0;
+
+    // 1. Query Indeks Utama (Tabel ini wajib punya kolom 'modul')
+    $indeksSekarang = \DB::table('hasil_indeks')
+        ->where('tahun', $tahun)
+        ->where('modul', $modul)
+        ->first();
+
+    $indeksLalu = \DB::table('hasil_indeks')
+        ->where('tahun', $tahunLalu)
+        ->where('modul', $modul)
+        ->first();
+
+    // 2. Query Domain Hasil (Filter lewat Join ke Domain)
+    $domainHasil = \DB::table('domain_hasil')
+        ->join('domain', 'domain_hasil.id_domain', '=', 'domain.id_domain')
+        ->where('domain_hasil.tahun', $tahun)
+        ->where('domain.modul', $modul)
+        ->select('domain_hasil.*')
+        ->get()
+        ->keyBy('id_domain');
+
+    // 3. Query Aspek Hasil (Filter lewat Join ke Aspek -> Join ke Domain)
+    $aspekHasil = \DB::table('aspek_hasil')
+        ->join('aspek', 'aspek_hasil.id_aspek', '=', 'aspek.id_aspek')
+        ->join('domain', 'aspek.id_domain', '=', 'domain.id_domain')
+        ->where('aspek_hasil.tahun', $tahun)
+        ->where('domain.modul', $modul) // Filter otomatis lewat kakeknya (domain)
+        ->select('aspek_hasil.*')
+        ->get()
+        ->keyBy('id_aspek');
+
+    // 4. List Domain untuk Loop
+    $allDomainsList = \DB::table('domain')
+        ->where('tahun', $tahun)
+        ->where('modul', $modul)
+        ->orderBy('urutan', 'asc')->get();
+
+    // 5. List Aspek untuk Loop (Join ke Domain)
+    $allAspeks = \DB::table('aspek')
+        ->join('domain', 'aspek.id_domain', '=', 'domain.id_domain')
+        ->where('aspek.tahun', $tahun)
+        ->where('domain.modul', $modul)
+        ->select('aspek.*')
+        ->orderBy('aspek.urutan', 'asc')
+        ->get()
+        ->groupBy('id_domain');
+
+    // 6. Hitung Progress (Join ke Aspek -> Join ke Domain)
+    $totalIndikator = \DB::table('indikator')
+        ->join('aspek', 'indikator.id_aspek', '=', 'aspek.id_aspek')
+        ->join('domain', 'aspek.id_domain', '=', 'domain.id_domain')
+        ->where('indikator.tahun', $tahun)
+        ->where('domain.modul', $modul)
+        ->count() ?: 47;
+
+    $terisi = \DB::table('penilaian_kriteria')
+        ->join('indikator', 'penilaian_kriteria.id_indikator', '=', 'indikator.id_indikator')
+        ->join('aspek', 'indikator.id_aspek', '=', 'aspek.id_aspek')
+        ->join('domain', 'aspek.id_domain', '=', 'domain.id_domain')
+        ->where('penilaian_kriteria.tahun', $tahun)
+        ->where('domain.modul', $modul)
+        ->whereNotNull('nilai_akhir_external')
+        ->count();
+
+$spbeSekarang = $indeksSekarang->indeks_akhir_eksternal ?? 0;
     $spbeLama = $indeksLalu->indeks_akhir_eksternal ?? 0;
     $selisih = (float)$spbeSekarang - (float)$spbeLama;
+    
+    // PASTIKAN DUA BARIS INI ADA DI SINI
     $aspekCounterGlobal = 1;
     $indikatorCounterGlobal = 1;
+    $persenJalan = $totalIndikator > 0 ? round(($terisi / $totalIndikator) * 100) : 0;
 @endphp
 
 <style>
@@ -33,19 +96,29 @@
 
 <div class="max-w-full mx-auto px-4 py-8 animate-in">
     <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-        <div>
-            <h2 class="text-3xl font-black text-slate-800 uppercase tracking-tighter">Rincian Hasil <span class="text-blue-600">Penilaian SPBE</span></h2>
-            <p class="text-sm text-slate-500 font-medium">Perbandingan detail parameter penilaian tahun {{ $tahunLalu }} vs {{ $tahun }}</p>
-        </div>
-        <form method="get" action="{{ route('admin.hasil') }}" class="flex items-center bg-white shadow-sm border rounded-2xl px-4 py-2">
-            <i class="fas fa-calendar-alt text-blue-500 mr-2"></i>
-            <select name="tahun" onchange="this.form.submit()" class="border-none focus:ring-0 text-sm font-bold text-slate-700 bg-transparent cursor-pointer">
-                @php $listTahun = \DB::table('domain')->distinct()->orderBy('tahun', 'desc')->pluck('tahun'); @endphp
-                @foreach($listTahun as $y)
-                    <option value="{{ $y }}" {{ $tahun == $y ? 'selected' : '' }}>Tahun {{ $y }}</option>
-                @endforeach
-            </select>
-        </form>
+       <div>
+    <h2 class="text-3xl font-black text-slate-800 uppercase tracking-tighter">
+        Rincian Hasil <span class="text-blue-600">Penilaian {{ $modul }}</span>
+    </h2>
+    <p class="text-sm text-slate-500 font-medium">Perbandingan detail parameter penilaian tahun {{ $tahunLalu }} vs {{ $tahun }}</p>
+</div>
+       <form method="get" action="{{ route('admin.hasil') }}" class="flex items-center bg-white shadow-sm border rounded-2xl px-4 py-2">
+    <input type="hidden" name="modul" value="{{ $modul }}">
+    
+    <i class="fas fa-calendar-alt text-blue-500 mr-2"></i>
+    <select name="tahun" onchange="this.form.submit()" class="border-none focus:ring-0 text-sm font-bold text-slate-700 bg-transparent cursor-pointer">
+        @php 
+            $listTahun = \DB::table('domain')
+                ->where('modul', $modul) // Filter tahun berdasarkan modul yang relevan
+                ->distinct()
+                ->orderBy('tahun', 'desc')
+                ->pluck('tahun'); 
+        @endphp
+        @foreach($listTahun as $y)
+            <option value="{{ $y }}" {{ $tahun == $y ? 'selected' : '' }}>Tahun {{ $y }}</option>
+        @endforeach
+    </select>
+</form>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
@@ -65,11 +138,27 @@
             </div>
         </div>
 
-        @php
-            $totalIndikator = \DB::table('indikator')->where('tahun', $tahun)->count() ?: 47;
-            $terisi = \DB::table('penilaian_kriteria')->where('tahun', $tahun)->whereNotNull('nilai_akhir_external')->count();
-            $persenJalan = round(($terisi / $totalIndikator) * 100);
-        @endphp
+       @php
+    // Menghitung total indikator dengan Join ke Domain untuk filter modul
+    $totalIndikator = \DB::table('indikator')
+        ->join('aspek', 'indikator.id_aspek', '=', 'aspek.id_aspek')
+        ->join('domain', 'aspek.id_domain', '=', 'domain.id_domain')
+        ->where('indikator.tahun', $tahun)
+        ->where('domain.modul', $modul)
+        ->count() ?: 47;
+
+    // Menghitung indikator yang sudah terisi
+    $terisi = \DB::table('penilaian_kriteria')
+        ->join('indikator', 'penilaian_kriteria.id_indikator', '=', 'indikator.id_indikator')
+        ->join('aspek', 'indikator.id_aspek', '=', 'aspek.id_aspek')
+        ->join('domain', 'aspek.id_domain', '=', 'domain.id_domain')
+        ->where('penilaian_kriteria.tahun', $tahun)
+        ->where('domain.modul', $modul)
+        ->whereNotNull('penilaian_kriteria.nilai_akhir_external')
+        ->count();
+        
+    $persenJalan = $totalIndikator > 0 ? round(($terisi / $totalIndikator) * 100) : 0;
+@endphp
         <div class="rounded-3xl shadow-xl p-6 bg-white border border-slate-100 flex flex-col justify-center text-center relative overflow-hidden group">
             <h5 class="text-[10px] font-bold text-slate-400 uppercase mb-2 tracking-widest">Progres Penilaian </h5>
             <p class="text-4xl font-black text-emerald-600 mb-2">{{ $persenJalan }}%</p>
@@ -110,8 +199,8 @@
                         <th colspan="5" class="bg-blue-50 border-b-2 border-blue-300">Penilaian Tahun {{ $tahun }}</th>
                     </tr>
                     <tr class="text-[10px] uppercase tracking-tighter bg-slate-50">
-                        <th class="p-2 w-16">Target</th><th class="p-2 w-16">Mandiri</th><th class="p-2 w-16">Verif</th><th class="p-2 w-16">Eks</th><th class="p-2 w-16 font-bold text-blue-700 bg-slate-100">Akhir</th>
-                        <th class="p-2 w-16 text-amber-600">Target</th><th class="p-2 w-16 text-blue-600">Mandiri</th><th class="p-2 w-16 text-indigo-600">Verif</th><th class="p-2 w-16 text-purple-600">Eks</th><th class="p-2 w-16 font-bold text-white bg-blue-600">Akhir</th>
+                        <th class="p-2 w-16">Target</th><th class="p-2 w-16">Mandiri</th><th class="p-2 w-16">Verifikator</th><th class="p-2 w-16">Eksternal</th><th class="p-2 w-16 font-bold text-blue-700 bg-slate-100">Akhir</th>
+                        <th class="p-2 w-16 text-amber-600">Target</th><th class="p-2 w-16 text-blue-600">Mandiri</th><th class="p-2 w-16 text-indigo-600">Verifikator</th><th class="p-2 w-16 text-purple-600">Eksternal</th><th class="p-2 w-16 font-bold text-white bg-blue-600">Akhir</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-200">

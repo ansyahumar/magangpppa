@@ -14,6 +14,7 @@
 
         <form method="get" action="{{ route('admin.monitoring') }}" class="bg-white/80 dark:bg-gray-800/80 p-2 rounded-2xl shadow-sm border border-gray-200">
     <div class="flex items-center gap-3">
+        <input type="hidden" name="modul" value="{{ request('modul', 'spbe') }}">
         <div class="flex items-center gap-2">
             <label class="text-[10px] font-black uppercase text-gray-400 ml-2 tracking-wider">Filter Tahun</label>
             <select name="tahun" id="global-select-tahun" class="form-select border-none focus:ring-0 text-sm font-bold bg-transparent cursor-pointer text-slate-700 dark:text-white" onchange="this.form.submit()">
@@ -28,34 +29,29 @@
         <div class="h-8 w-[1px] bg-gray-200 dark:bg-gray-700"></div>
 
 @php
-    $tahunAktif = request('tahun', date('Y'));
+    $tahunAktif = request('tahun', $tahun);
+    $modulAktif = request('modul', 'spbe');
 
-    $indikators = \DB::table('indikator')
-        ->where('tahun', $tahunAktif)
-        ->get();
+    // 1. Ambil Total Indikator HANYA untuk modul ini
+    $totalIndikator = \DB::table('indikator')
+        ->join('aspek', 'indikator.id_aspek', '=', 'aspek.id_aspek')
+        ->join('domain', 'aspek.id_domain', '=', 'domain.id_domain')
+        ->where('indikator.tahun', $tahunAktif)
+        ->where('domain.modul', $modulAktif)
+        ->count();
 
-    $totalIndikator = $indikators->count() ?: 47;
-    $totalPersenKumulatif = 0;
+    // 2. Hitung berapa banyak yang sudah diisi Nilai Akhirnya
+    $terisi = \DB::table('penilaian_kriteria')
+        ->join('indikator', 'penilaian_kriteria.id_indikator', '=', 'indikator.id_indikator')
+        ->join('aspek', 'indikator.id_aspek', '=', 'aspek.id_aspek')
+        ->join('domain', 'aspek.id_domain', '=', 'domain.id_domain')
+        ->where('penilaian_kriteria.tahun', $tahunAktif)
+        ->where('domain.modul', $modulAktif)
+        ->whereNotNull('penilaian_kriteria.nilai_akhir_external')
+        ->count();
 
-    foreach ($indikators as $ind) {
-        $penilaian = \DB::table('penilaian_kriteria')
-            ->where('id_indikator', $ind->id_indikator)
-            ->where('tahun', $tahunAktif)
-            ->first();
-
-        if ($penilaian) {
-            $point = 0;
-            if (!is_null($penilaian->nilai_asesor_internal)) $point++;
-            if (!is_null($penilaian->nilai_verifikator_internal)) $point++;
-            if (!is_null($penilaian->nilai_asesor_external)) $point++;
-            if (!is_null($penilaian->nilai_akhir_external)) $point++;
-
-            $persenIndikator = ($point / 4) * 100;
-            $totalPersenKumulatif += $persenIndikator;
-        }
-    }
-
-    $persenProgres = round($totalPersenKumulatif / $totalIndikator);
+    // 3. Kalkulasi Persentase
+    $persenProgres = $totalIndikator > 0 ? round(($terisi / $totalIndikator) * 100) : 0;
 @endphp
 
 <div class="flex items-center gap-3 px-2">
@@ -105,9 +101,12 @@
                                         <th class="px-4 py-4 border-r w-12 text-center">No</th>
                                         <th class="px-4 py-4 border-r text-left min-w-[300px]">Indikator</th>
                                         <th class="px-2 py-4 border-r text-center bg-amber-50">Target</th>
-                                        <th class="px-2 py-4 border-r text-center bg-blue-50">Asesor In</th>
-                                        <th class="px-2 py-4 border-r text-center bg-blue-50">Verif In</th>
-                                        <th class="px-2 py-4 border-r text-center bg-emerald-50">Asesor Ex</th>
+                                        <th class="px-2 py-4 border-r text-center bg-blue-50">Asesor
+                                            Internal</th>
+                                        <th class="px-2 py-4 border-r text-center bg-blue-50">Verif
+                                            Internal</th>
+                                        <th class="px-2 py-4 border-r text-center bg-emerald-50">Asesor
+                                            Eksternal</th>
                                         <th class="px-2 py-4 text-center bg-emerald-100 font-bold">Final</th>
                                     </tr>
                                 </thead>
@@ -179,38 +178,97 @@
         </div>
     </div>
 </div>
-<div class="flex justify-end mt-4">
-    <form id="form-finalisasi-ex" method="POST" action="{{ route('admin.finalisasi_eksternal') }}">
-        @csrf
-        <input type="hidden" name="tahun" value="{{ $tahun }}">
-        <button type="button" onclick="confirmEx()" class="inline-flex items-center px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 text-white font-bold rounded-xl shadow-lg hover:shadow-emerald-500/50 transition-all transform active:scale-95">
-            <i class="fa-solid fa-calculator mr-2"></i> Hitung & Finalisasi Nilai Eksternal
+<div class="flex justify-end mt-8 mb-4"> 
+    @php
+        // Cek apakah sudah ada data yang berstatus final di tahun dan modul ini
+        $isLockedGlobal = \DB::table('penilaian_kriteria')
+            ->where('tahun', $tahun)
+            ->where('modul', request('modul', 'spbe'))
+            ->where('status_monitor', 'final')
+            ->exists();
+    @endphp
+
+    @if(!$isLockedGlobal)
+        <form id="form-finalisasi-ex" method="POST" action="{{ route('admin.finalisasi_eksternal') }}">
+            @csrf
+            <input type="hidden" name="tahun" value="{{ $tahun }}">
+            <input type="hidden" name="modul" value="{{ request('modul', 'spbe') }}">
+            <button type="button" onclick="confirmEx()" class="inline-flex items-center px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 text-white font-bold rounded-xl shadow-lg hover:shadow-emerald-500/50 transition-all transform active:scale-95">
+                <i class="fa-solid fa-calculator mr-2"></i> Hitung & Finalisasi Nilai Eksternal
+            </button>
+        </form>
+    @else
+        <button type="button" disabled class="inline-flex items-center px-6 py-2.5 bg-gray-400 text-white font-bold rounded-xl cursor-not-allowed">
+            <i class="fa-solid fa-lock mr-2"></i> Penilaian Terkunci (Sudah Final)
         </button>
-    </form>
+    @endif
 </div>
 <script>
-function confirmEx() {
-    Swal.fire({
+async function confirmEx() {
+    // 1. Ambil semua baris data (sesuaikan selector jika perlu, misal: #tabel-data tbody tr)
+    const rows = document.querySelectorAll('table tbody tr');
+    let emptyRows = [];
+
+    rows.forEach((row) => {
+        // Kita ambil teks dari kolom terakhir atau kolom tempat Nilai Akhir Eksternal berada
+        // Jika Nilai Akhir ada di kolom ke-7, gunakan: row.cells[6].innerText
+        // Untuk amannya, kita cek seluruh teks di baris tersebut
+        const rowText = row.innerText.trim();
+
+        // CEK KONDISI KOSONG:
+        // Ganti '-' atau '0' di bawah ini dengan apa yang tampil di tabel jika belum dinilai
+        const isUnfilled = rowText.includes('Belum Diisi') || 
+                           rowText.includes('Belum Dinilai') || 
+                           rowText.endsWith('-') || 
+                           rowText.includes('Belum Diverif');
+
+        if (isUnfilled) {
+            emptyRows.push(row);
+        }
+    });
+
+    // 2. JIKA DITEMUKAN DATA KOSONG
+    if (emptyRows.length > 0) {
+        return Swal.fire({
+            icon: 'error',
+            title: 'Data Belum Lengkap!',
+            text: `Masih ada ${emptyRows.length} indikator yang belum memiliki Nilai Eksternal.`,
+            confirmButtonColor: '#ef4444',
+            confirmButtonText: 'Cari Indikator',
+            returnFocus: false
+        }).then(() => {
+            // Scroll ke baris kosong pertama
+            const firstEmpty = emptyRows[0];
+            firstEmpty.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            // Highlight baris agar admin tahu mana yang kosong
+            firstEmpty.style.backgroundColor = "#fee2e2"; 
+            setTimeout(() => { firstEmpty.style.backgroundColor = ""; }, 3000);
+        });
+    }
+
+    // 3. JIKA LENGKAP, BARU KONFIRMASI FINAL
+    const result = await Swal.fire({
         title: 'Kalkulasi Nilai Eksternal?',
-        text: "Sistem akan menghitung Indeks Asesor Eksternal dan Nilai Akhir secara bersamaan untuk tahun {{ $tahun }}.",
+        text: "Sistem akan menghitung Indeks Asesor Eksternal dan Nilai Akhir secara bersamaan. Data akan dikunci setelah ini.",
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#059669',
         cancelButtonColor: '#64748b',
-        confirmButtonText: 'Ya, Hitung Sekarang!',
-        cancelButtonText: 'Batal'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            Swal.fire({
-                title: 'Sedang Menghitung...',
-                allowOutsideClick: false,
-                didOpen: () => { Swal.showLoading(); }
-            });
-            document.getElementById('form-finalisasi-ex').submit();
-        }
+        confirmButtonText: 'Ya, Hitung & Kunci Sekarang!',
+        cancelButtonText: 'Batal',
+        returnFocus: false
     });
-}
 
+    if (result.isConfirmed) {
+        Swal.fire({
+            title: 'Sedang Menghitung...',
+            allowOutsideClick: false,
+            didOpen: () => { Swal.showLoading(); }
+        });
+        document.getElementById('form-finalisasi-ex').submit();
+    }
+}
 function copyToClipboard(elementId, isInput = false) {
     const element = document.getElementById(elementId);
     let text = "";
@@ -333,15 +391,31 @@ document.addEventListener('DOMContentLoaded', () => {
 function renderUI(data, isExternalFilled, nomorUrut) {
     const content = document.getElementById('kriteria-content');
     const selectTahun = document.getElementById('global-select-tahun');
+    const saveBtn = document.getElementById('save-kriteria'); // Pastikan ID ini sesuai dengan tombol simpan Anda
     
     const detail = data.detail || { nomor_indikator: '-', nama_indikator: '-' };
     const tahunHistori = data.tahun_histori || (selectTahun.value - 1);
     const cat = (data.catatan && data.catatan.length > 0) ? data.catatan[0] : {bukti: '[]', nama_catatankriteria: '', pencapaian: ''};
     const kriteriaList = data.kriteria || [];
+    
     const getGlobalVal = (fieldName) => {
         const found = kriteriaList.find(item => item[fieldName] != null && item[fieldName] != 0);
         return found ? found[fieldName] : null;
     };
+
+    // --- LOGIKA PENGUNCIAN (FIX) ---
+    const isLocked = kriteriaList.some(k => k.status_monitor === 'final');
+
+    // Kontrol Tombol Simpan (Sembunyikan jika sudah final)
+   if (saveBtn) {
+        if (isLocked) {
+            saveBtn.style.setProperty('display', 'none', 'important'); // Paksa sembunyikan
+            saveBtn.classList.add('hidden');
+        } else {
+            saveBtn.style.setProperty('display', 'block', 'important'); // Munculkan kembali
+            saveBtn.classList.remove('hidden'); 
+        }
+    }
 
     const gHistori  = getGlobalVal('nilai_histori');
     const gTarget   = getGlobalVal('nilai_target');
@@ -384,13 +458,16 @@ function renderUI(data, isExternalFilled, nomorUrut) {
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100 bg-white">`;
-kriteriaList.forEach((k, i) => {
+
+    kriteriaList.forEach((k, i) => {
         const level = (i % 5) + 1;
-        const disAdmin = isExternalFilled ? 'disabled' : '';
+        
+        // --- ATRIBUT DISABLE UNTUK CHECKBOX EKSTERNAL ---
+        const disAdmin = (isLocked) ? 'disabled' : '';
+
         const isVerified = (k.status_target === 'verified');
-        const nilaiPrioritas = k.nilai_histori;
-        const isCheckedTarget = (isVerified && Number(k.nilai_target) === level) ? 'checked' : '';
         const isCheckedHistori  = (Number(k.nilai_histori) === level) ? 'checked' : '';
+        const isCheckedTarget = (isVerified && Number(k.nilai_target) === level) ? 'checked' : '';
         const isCheckedAsesorIn = (Number(k.nilai_asesor_internal) === level) ? 'checked' : '';
         const isCheckedVerifIn  = (Number(k.nilai_verifikator_internal) === level) ? 'checked' : '';
         const isCheckedAsesorEx = (Number(k.nilai_asesor_external) === level) ? 'checked' : '';
@@ -434,107 +511,98 @@ kriteriaList.forEach((k, i) => {
         <h4 class="font-bold text-gray-800 mb-6 flex items-center gap-2 underline italic uppercase text-[10px]">
             <i class="fa-solid fa-circle-info text-blue-500"></i> Rekapitulasi Informasi Pendukung (Read-Only)
         </h4>
-<div class="flex justify-between items-center mb-2">
-    <label class="text-[10px] font-bold text-blue-600 uppercase tracking-widest">
-        <i class="fa-solid fa-user-pen mr-1"></i> Catatan Asesor Internal
-    </label>
-    <button onclick="copyToClipboard('catatan-internal-text')" class="text-[9px] bg-blue-100 text-blue-600 px-2 py-1 rounded hover:bg-blue-200 transition-colors">
-        <i class="fa-regular fa-copy"></i> Copy
-    </button>
-</div>
-<div id="catatan-internal-text" class="text-xs text-gray-700 bg-white p-4 rounded-xl border border-blue-100 min-h-[80px] shadow-sm italic leading-relaxed">
-    ${cat.nama_catatankriteria || 'Tidak ada catatan asesor.'}
-</div>
+        <div class="flex justify-between items-center mb-2">
+            <label class="text-[10px] font-bold text-blue-600 uppercase tracking-widest">
+                <i class="fa-solid fa-user-pen mr-1"></i> Catatan Asesor Internal
+            </label>
+            <button onclick="copyToClipboard('catatan-internal-text')" class="text-[9px] bg-blue-100 text-blue-600 px-2 py-1 rounded hover:bg-blue-200 transition-colors">
+                <i class="fa-regular fa-copy"></i> Copy
+            </button>
+        </div>
+        <div id="catatan-internal-text" class="text-xs text-gray-700 bg-white p-4 rounded-xl border border-blue-100 min-h-[80px] shadow-sm italic leading-relaxed">
+            ${cat.nama_catatankriteria || 'Tidak ada catatan asesor.'}
+        </div>
 
-                <div>
-                    <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Lampiran Bukti (File & Link)</label>
-                    <div class="flex flex-wrap gap-2">`;
-                   try { 
-  const buktiArray = JSON.parse(cat.bukti || '[]');
+        <div class="mt-4">
+            <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Lampiran Bukti (File & Link)</label>
+            <div class="flex flex-wrap gap-2">`;
 
-if (buktiArray.length > 0) {
-    buktiArray.forEach((b, index) => {
+    try { 
+        const buktiArray = JSON.parse(cat.bukti || '[]');
+        if (buktiArray.length > 0) {
+            buktiArray.forEach((b, index) => {
+                if (!b) return;
+                let value = b.trim();
+                let isUrl = false;
+                let href = '';
 
-        if (!b) return;
+                const looksLikeUrl = value.startsWith('http://') || value.startsWith('https://') || value.startsWith('www.') || (value.includes('.') && !value.toLowerCase().endsWith('.pdf'));
 
-        let value = b.trim();
-        let isUrl = false;
-        let href = '';
+                if (looksLikeUrl) {
+                    if (!value.startsWith('http://') && !value.startsWith('https://')) {
+                        value = 'https://' + value;
+                    }
+                    href = value;
+                    isUrl = true;
+                } else {
+                    const fileName = value.split('/').pop();
+                    href = `/view-bukti/${encodeURIComponent(fileName)}`;
+                    isUrl = false;
+                }
 
-        const looksLikeUrl =
-            value.startsWith('http://') ||
-            value.startsWith('https://') ||
-            value.startsWith('www.') ||
-            (value.includes('.') && !value.toLowerCase().endsWith('.pdf'));
+                const label = isUrl ? 'LINK BUKTI' : 'FILE BUKTI';
+                const icon = isUrl ? 'fa-link' : 'fa-file-pdf';
 
-        if (looksLikeUrl) {
-
-            if (!value.startsWith('http://') && !value.startsWith('https://')) {
-                value = 'https://' + value;
-            }
-
-            href = value;
-            isUrl = true;
-
-        } else {
-            const fileName = value.split('/').pop();
-            href = `/view-bukti/${encodeURIComponent(fileName)}`;
-            isUrl = false;
+                html += `
+                    <a href="${href}" target="_blank" 
+                       class="inline-flex items-center px-3 py-2 bg-blue-50 text-blue-700 text-[10px] rounded-lg font-bold border border-blue-200 hover:bg-blue-600 hover:text-white transition-all shadow-sm">
+                         <i class="fa-solid ${icon} mr-2"></i> ${label} ${index + 1}
+                    </a>`;
+            });
+        } else { 
+            html += '<span class="text-gray-400 text-xs italic">Tidak ada lampiran.</span>'; 
         }
-
-        const label = isUrl ? 'LINK BUKTI' : 'FILE BUKTI';
-        const icon = isUrl ? 'fa-link' : 'fa-file-pdf';
-
-        html += `
-            <a href="${href}" target="_blank" 
-               class="inline-flex items-center px-3 py-2 bg-blue-50 text-blue-700 text-[10px] rounded-lg font-bold border border-blue-200 hover:bg-blue-600 hover:text-white transition-all shadow-sm">
-                 <i class="fa-solid ${icon} mr-2"></i> ${label} ${index + 1}
-            </a>`;
-    });
-    } else { 
-        html += '<span class="text-gray-400 text-xs italic">Tidak ada lampiran.</span>'; 
+    } catch(e) { 
+        html += '<span class="text-gray-400 text-xs italic">Gagal memuat bukti.</span>'; 
     }
-} catch(e) { 
-    html += '<span class="text-gray-400 text-xs italic">Gagal memuat bukti.</span>'; 
-}
+
     html += `       
-    </div>
-                </div>
             </div>
-
-            <div class="space-y-4">
-               <div class="flex justify-between items-center mb-2">
-    <label class="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">
-        <i class="fa-solid fa-user-check mr-1"></i> Analisis Pencapaian (Verifikator)
-    </label>
-    <button onclick="copyToClipboard('analisis-pencapaian-text')" class="text-[9px] bg-emerald-100 text-emerald-600 px-2 py-1 rounded hover:bg-emerald-200 transition-colors">
-        <i class="fa-regular fa-copy"></i> Copy
-    </button>
-</div>
-<div id="analisis-pencapaian-text" class="text-xs text-gray-700 bg-emerald-50/30 p-4 rounded-xl border border-emerald-100 min-h-[80px] shadow-sm leading-relaxed">
-    ${cat.pencapaian || 'Belum ada analisis dari verifikator.'}
-</div>
-                </div>
-               <div class="flex justify-between items-center mb-2">
-    <label class="text-[10px] font-bold text-emerald-700 uppercase tracking-widest">
-        <i class="fa-solid fa-comment-dots mr-1"></i> Catatan Eksternal (Admin)
-    </label>
-    <button onclick="copyToClipboard('input-catatan-external', true)" class="text-[9px] bg-emerald-100 text-emerald-700 px-2 py-1 rounded hover:bg-emerald-200 transition-colors">
-        <i class="fa-regular fa-copy"></i> Copy
-    </button>
-</div>
-        <textarea id="input-catatan-external" 
-            class="w-full text-xs text-gray-700 bg-white p-4 rounded-xl border border-emerald-200 focus:ring-emerald-500 focus:border-emerald-500 min-h-[100px] shadow-sm leading-relaxed"
-            placeholder="Tambahkan catatan penilaian eksternal di sini..."
-            ${isExternalFilled ? 'disabled' : ''}>${cat.catatan_external || ''}</textarea>
-    </div>
-
-                <div class="p-3 bg-gray-100/50 rounded-lg">
-                    <p class="text-[9px] text-gray-500 italic">
-                        * Data di atas adalah data final yang telah dikunci. Admin hanya memiliki akses baca.
-                    </p>
-                </div>
+        </div>
+        
+        <div class="space-y-4 mt-6">
+            <div class="flex justify-between items-center mb-2">
+                <label class="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">
+                    <i class="fa-solid fa-user-check mr-1"></i> Analisis Pencapaian (Verifikator)
+                </label>
+                <button onclick="copyToClipboard('analisis-pencapaian-text')" class="text-[9px] bg-emerald-100 text-emerald-600 px-2 py-1 rounded hover:bg-emerald-200 transition-colors">
+                    <i class="fa-regular fa-copy"></i> Copy
+                </button>
             </div>
+            <div id="analisis-pencapaian-text" class="text-xs text-gray-700 bg-emerald-50/30 p-4 rounded-xl border border-emerald-100 min-h-[80px] shadow-sm leading-relaxed">
+                ${cat.pencapaian || 'Belum ada analisis dari verifikator.'}
+            </div>
+        </div>
+
+        <div class="mt-6">
+            <div class="flex justify-between items-center mb-2">
+                <label class="text-[10px] font-bold text-emerald-700 uppercase tracking-widest">
+                    <i class="fa-solid fa-comment-dots mr-1"></i> Catatan Eksternal (Admin)
+                </label>
+                <button onclick="copyToClipboard('input-catatan-external', true)" class="text-[9px] bg-emerald-100 text-emerald-700 px-2 py-1 rounded hover:bg-emerald-200 transition-colors">
+                    <i class="fa-regular fa-copy"></i> Copy
+                </button>
+            </div>
+            <textarea id="input-catatan-external" 
+                class="w-full text-xs text-gray-700 bg-white p-4 rounded-xl border border-emerald-200 focus:ring-emerald-500 focus:border-emerald-500 min-h-[100px] shadow-sm leading-relaxed"
+                placeholder="Tambahkan catatan penilaian eksternal di sini..."
+                ${isLocked ? 'disabled' : ''}>${cat.catatan_external || ''}</textarea>
+        </div>
+
+        <div class="p-3 bg-gray-100/50 rounded-lg mt-4">
+            <p class="text-[9px] text-gray-500 italic">
+                * ${isLocked ? 'Data di atas adalah data final yang telah dikunci. Admin hanya memiliki akses baca.' : 'Silakan lengkapi penilaian eksternal sebelum melakukan finalisasi.'}
+            </p>
         </div>
     </div>`;
 
@@ -562,45 +630,37 @@ if (buktiArray.length > 0) {
         return logTahun === tahunAktifDropdown;
     });
 
-  if (filteredLogsAdmin.length > 0) {
-filteredLogsAdmin.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).forEach(log => {
-const date = new Date(log.created_at);
-const formattedDate =  date.toLocaleString('id-ID', { 
-day: '2-digit', 
-month: 'short', 
-year: 'numeric', 
-hour: '2-digit', 
-minute: '2-digit' 
-});
+    if (filteredLogsAdmin.length > 0) {
+        filteredLogsAdmin.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).forEach(log => {
+            const date = new Date(log.created_at);
+            const formattedDate = date.toLocaleString('id-ID', { 
+                day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' 
+            });
 
-let displayRole = log.role; 
+            let displayRole = log.role; 
+            const roleLower = log.role ? log.role.toLowerCase() : '';
+            if (roleLower === 'p1') displayRole = 'Pemimpin';
+            else if (roleLower === 'p2') displayRole = 'Karodatin';
+            else if (roleLower === 'admin') displayRole = 'Administrator';
 
-
-const roleLower = log.role ? log.role.toLowerCase() : '';
-if (roleLower === 'p1') {
-displayRole = 'Pemimpin';
-} else if (roleLower === 'p2') {
-displayRole = 'Karodatin';
-} else if (roleLower === 'admin') {
-displayRole = 'Administrator';
-}
-
-html += `
-<tr>
-<td class="px-4 py-2 font-bold text-blue-600 dark:text-blue-400">${log.name}</td>
-<td class="px-4 py-2 font-semibold text-gray-500 uppercase">${displayRole}</td>
-    <td class="px-4 py-2 dark:text-gray-300">${log.aksi}</td>
-    <td class="px-4 py-2 text-right text-gray-400 font-mono">${formattedDate}</td>
-    </tr>`;
-    });
-} else {
-    html += `<tr><td colspan="4" class="px-4 py-4 text-center text-gray-400 italic">Tidak ada aktivitas di tahun ${tahunAktifDropdown}.</td></tr>`;
-}
-
+            html += `
+                <tr>
+                    <td class="px-4 py-2 font-bold text-blue-600 dark:text-blue-400">${log.name}</td>
+                    <td class="px-4 py-2 font-semibold text-gray-500 uppercase">${displayRole}</td>
+                    <td class="px-4 py-2 dark:text-gray-300">${log.aksi}</td>
+                    <td class="px-4 py-2 text-right text-gray-400 font-mono">${formattedDate}</td>
+                </tr>`;
+        });
+    } else {
+        html += `<tr><td colspan="4" class="px-4 py-4 text-center text-gray-400 italic">Tidak ada aktivitas di tahun ${tahunAktifDropdown}.</td></tr>`;
+    }
 
     html += `</tbody></table></div></div>`;
+    
+    // Render semua HTML ke container
     content.innerHTML = html;
 
+    // Tambahkan kembali event listener checkbox
     content.querySelectorAll('.kriteria-cb').forEach(cb => {
         cb.onchange = function() {
             if (this.checked) {
@@ -614,6 +674,10 @@ html += `
 }
 
     saveBtn.onclick = async () => {
+        const kriteriaList = (typeof currentData !== 'undefined') ? currentData.kriteria : [];
+    if (kriteriaList.some(k => k.status_monitor === 'final')) {
+        return Swal.fire('Terkunci', 'Data sudah final dan tidak bisa diubah.', 'error');
+    }
     const checkedAsesorEx = content.querySelector('.kriteria-cb[data-field="nilai_asesor_external"]:checked');
     const checkedAkhirEx = content.querySelector('.kriteria-cb[data-field="nilai_akhir_external"]:checked');
 
@@ -642,6 +706,7 @@ html += `
             title: 'Sedang Memproses...', 
             allowOutsideClick: false, 
             didOpen: () => Swal.showLoading() 
+            
         });
         
         const kriteria = {};
@@ -656,9 +721,13 @@ html += `
         const fd = new FormData();
         fd.append('tahun', selectTahun.value);
         fd.append('id_indikator', activeIndikatorId);
+const currentModul = new URLSearchParams(window.location.search).get('modul') || 'spbe'; 
+fd.append('modul', currentModul);
         fd.append('kriteria', JSON.stringify(Object.values(kriteria)));
-        fd.append('catatan_external', catatanExternalVal); 
-        fd.append('_token', '{{ csrf_token() }}');
+fd.append('nilai_asesor_external', checkedAsesorEx.value);
+    fd.append('nilai_akhir_external', checkedAkhirEx.value);
+    fd.append('catatan_external', document.getElementById('input-catatan-external').value); 
+    fd.append('_token', '{{ csrf_token() }}');
 
         try {
             const res = await fetch('/penilaian-kriteria/store', { 

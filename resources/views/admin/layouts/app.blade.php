@@ -55,12 +55,16 @@
             <h1 class="text-xl font-bold text-white tracking-tight">Admin Panel</h1>
         </div>
 
-      <nav class="flex-1 overflow-y-auto p-4 space-y-2 text-white custom-scrollbar" x-data="{ openSubMenu: null }">
+     <nav class="flex-1 overflow-y-auto p-4 space-y-2 text-white custom-scrollbar" 
+     x-data="{ 
+        openMenu: '{{ request()->routeIs('admin.dashboard', 'admin.hasil', 'admin.monitoring') ? 'indeks_group' : null }}', 
+        openSubMenu: '{{ request()->get('modul') ?? (request()->routeIs('admin.*') ? 'spbe' : null) }}' 
+     }">
     
-    <div class="relative group">
-        <button @click="handleToggle('indeks_group')" 
+    <div class="relative">
+        <button @click="openMenu = (openMenu === 'indeks_group' ? null : 'indeks_group')" 
             class="w-full flex items-center justify-between px-4 py-2.5 rounded-lg font-medium transition-all border-l-4"
-            :class="(openMenu === 'indeks_group') ? 'border-primary bg-blue-700 shadow-inner' : 'border-transparent hover:bg-blue-700/50'">
+            :class="openMenu === 'indeks_group' ? 'border-primary bg-blue-700 shadow-inner' : 'border-transparent hover:bg-blue-700/50'">
             <div class="flex items-center gap-3">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -72,59 +76,71 @@
             </svg>
         </button>
         
-        <div x-show="openMenu === 'indeks_group'" x-cloak class="ml-4 mt-1 space-y-1 border-l border-white/20">
-            <div class="py-1">
-                <button @click="openSubMenu = (openSubMenu === 'spbe' ? null : 'spbe')" 
-                    class="w-full flex items-center justify-between px-4 py-2 text-sm hover:bg-white/5 rounded-r-lg transition-all">
-                    <div class="flex items-center gap-3">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+        <div x-show="openMenu === 'indeks_group'" 
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0 -translate-y-2"
+             x-transition:enter-end="opacity-100 translate-y-0"
+             x-cloak class="ml-4 mt-1 space-y-1 border-l border-white/20">
+            
+            @php
+                $modules = [
+                    'spbe' => ['label' => 'SPBE', 'icon' => 'M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z'],
+                    'pemdi' => ['label' => 'PEMDI', 'icon' => 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5']
+                ];
+            @endphp
+
+            @foreach($modules as $key => $mod)
+                <div class="py-0.5">
+                    <button @click="openSubMenu = (openSubMenu === '{{ $key }}' ? null : '{{ $key }}')" 
+                        class="w-full flex items-center justify-between px-4 py-2 text-sm hover:bg-white/5 rounded-r-lg transition-all"
+                        :class="openSubMenu === '{{ $key }}' ? 'text-primary font-bold' : 'text-white/80'">
+                        <div class="flex items-center gap-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $mod['icon'] }}" />
+                            </svg>
+                            <span>{{ $mod['label'] }}</span>
+                        </div>
+                        <svg class="w-3 h-3 transition-transform" :class="openSubMenu === '{{ $key }}' ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                         </svg>
-                        <span>SPBE</span>
+                    </button>
+
+                    <div x-show="openSubMenu === '{{ $key }}'" x-cloak class="ml-6 mt-1 space-y-1 border-l border-white/10">
+                        @foreach(['Dashboard' => 'admin.dashboard', 'Hasil Penilaian' => 'admin.hasil', 'Monitoring' => 'admin.monitoring'] as $label => $route)
+                            @php 
+                                $fullRoute = route($route, ['modul' => $key]);
+                                $isActive = request()->fullUrl() == $fullRoute;
+                            @endphp
+                            <a href="{{ $fullRoute }}" 
+                               class="block px-4 py-2 text-xs transition-all rounded-r-lg {{ $isActive ? 'text-primary font-bold bg-white/10' : 'text-white/60 hover:text-primary hover:bg-white/5' }}">
+                                • {{ $label }}
+                            </a>
+                        @endforeach
                     </div>
-                    <svg class="w-3 h-3 transition-transform" :class="openSubMenu === 'spbe' ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                    </svg>
-                </button>
-
-                <div x-show="openSubMenu === 'spbe'" x-cloak class="ml-6 mt-1 space-y-1 border-l border-white/10">
-                    @php
-                        $spbeItems = [
-                            ['label' => 'Dashboard', 'route' => 'admin.dashboard'],
-                            ['label' => 'Hasil Penilaian', 'route' => 'admin.hasil'],
-                            ['label' => 'Monitoring', 'route' => 'admin.monitoring'],
-                        ];
-                    @endphp
-
-                    @foreach($spbeItems as $item)
-                    <a href="{{ route($item['route']) }}" 
-                       class="block px-4 py-2 text-xs transition-all rounded-r-lg"
-                       :class="'{{ request()->url() }}' === '{{ route($item['route']) }}' ? 'text-primary font-bold bg-white/10' : 'text-white/70 hover:text-primary hover:bg-white/5'">
-                        • {{ $item['label'] }}
-                    </a>
-                    @endforeach
                 </div>
-            </div>
+            @endforeach
         </div>
     </div>
 
-    <a href="{{ route('master.index') }}"
-        class="flex items-center gap-3 px-4 py-2.5 rounded-lg font-medium transition-all border-l-4
-        {{ request()->routeIs('master.*') ? 'border-primary bg-blue-700' : 'border-transparent hover:bg-blue-700/50' }}">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7c0-2-1-3-3-3H7c-2 0-3 1-3 3z" />
-        </svg>
-        <span>Master Data</span>
-    </a>
+    <div class="my-4 border-t border-white/10 mx-4"></div>
 
-    <a href="{{ route('admin.users.index') }}"
-        class="flex items-center gap-3 px-4 py-2.5 rounded-lg font-medium transition-all border-l-4
-        {{ request()->routeIs('admin.users.*') ? 'border-primary bg-blue-700' : 'border-transparent hover:bg-blue-700/50' }}">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-        </svg>
-        <span>Manajemen Akun</span>
-    </a>
+    @php
+        $navLinks = [
+            ['route' => 'master.index', 'label' => 'Master Data', 'icon' => 'M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7c0-2-1-3-3-3H7c-2 0-3 1-3 3z', 'active' => 'master.*'],
+            ['route' => 'admin.users.index', 'label' => 'Manajemen Akun', 'icon' => 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z', 'active' => 'admin.users.*'],
+            ['route' => 'admin.satuan.index', 'label' => 'Unit Kerja', 'icon' => 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1', 'active' => 'admin.satuan.*'],
+        ];
+    @endphp
+
+    @foreach($navLinks as $link)
+        <a href="{{ route($link['route']) }}"
+            class="flex items-center gap-3 px-4 py-2.5 rounded-lg font-medium transition-all border-l-4 {{ request()->routeIs($link['active']) ? 'border-primary bg-blue-700 shadow-md' : 'border-transparent hover:bg-blue-700/50 text-white/90' }}">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $link['icon'] }}" />
+            </svg>
+            <span>{{ $link['label'] }}</span>
+        </a>
+    @endforeach
 </nav>
     </aside>
 

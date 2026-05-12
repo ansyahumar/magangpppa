@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
+use App\Helpers\PenilaianHelper;
 
 class PenilaianKriteriaController extends Controller
 {
@@ -75,6 +76,7 @@ public function show(Request $request, $id_indikator)
                     'nilai_akhir_external'       => $penilaianAktif ? $penilaianAktif->nilai_akhir_external : null,  
                     'nilai_histori'              => (float) $nilaiPrev,
                     'status_target'              => $penilaianAktif ? $penilaianAktif->status_target : null,
+                    'status_monitor'             => $penilaianAktif ? $penilaianAktif->status_monitor : 'draft',
                 ];
             });
 
@@ -112,6 +114,7 @@ return response()->json([
             'logs'          => $logs,
             'mode'          => $is_final ? 'histori' : 'input',
             'status_target' => $penilaianAktif ? $penilaianAktif->status_target : null,
+            'status_monitor'             => $penilaianAktif ? $penilaianAktif->status_monitor : 'draft',
         ]);
 
     } catch (\Exception $e) {
@@ -130,10 +133,11 @@ public function store(Request $request)
     $catatanData = json_decode($request->input('catatan'), true) ?? [];
     $kriteriaData = json_decode($request->input('kriteria'), true) ?? [];
     $pencapaianInput = $request->input('pencapaian');
+    $modul = $request->input('modul');
     
     try {
         $isLockedUnit = DB::table('penilaian_kriteria')
-    ->where(['id_indikator' => $id_indikator, 'tahun' => $tahun, 'status' => 'final'])
+    ->where(['id_indikator' => $id_indikator, 'tahun' => $tahun, 'status' => 'final', 'modul' => $modul])
     ->exists();
 
 if ($isLockedUnit && $user->role === 'user') {
@@ -146,70 +150,81 @@ if ($isLockedUnit && $user->role === 'user') {
 
     $firstKriteria = reset($kriteriaData);
         $firstKriteria = reset($kriteriaData);
-        $kriteriaId = $firstKriteria['kriteria_id'] ?? null;
-        $existingRow = DB::table('penilaian_kriteria')
-            ->where(['id_indikator' => $id_indikator, 'tahun' => $tahun])
-            ->first();
+       // ... kode awal ...
+$kriteriaId = $firstKriteria['kriteria_id'] ?? null;
 
-        foreach ($kriteriaData as $data) {
-            $updateData = ['updated_at' => now()];
+// Pastikan pencarian existingRow mencakup modul
+$existingRow = DB::table('penilaian_kriteria')
+    ->where([
+        'id_indikator' => $id_indikator, 
+        'tahun'        => $tahun, 
+        'modul'        => $modul
+    ])
+    ->first();
 
-            if ($user->role === 'verifikator') {
-                if (!$existingRow || is_null($existingRow->nilai_asesor_internal)) {
-                    throw new \Exception('Verifikator belum bisa memberi nilai karena User belum mengisi penilaian.');
-                }
-                $updateData['nilai_verifikator_internal'] = $data['nilai_verifikator_internal'];
-                $updateData['id_kriteria'] = $data['kriteria_id']; 
-                $updateData['status'] = 'final'; 
-            } 
-            elseif ($user->role === 'admin') {
-                if (isset($data['nilai_asesor_external'])) $updateData['nilai_asesor_external'] = $data['nilai_asesor_external'];
-                if (isset($data['nilai_akhir_external'])) {
-                    $updateData['nilai_akhir_external'] = $data['nilai_akhir_external'];
-                    $updateData['id_kriteria'] = $data['kriteria_id'];
-                }
-                $updateData['status'] = 'final';
-            } 
-            elseif ($user->role === 'user') { 
-                $updateData['nilai_asesor_internal'] = $data['nilai_asesor_internal'];
-                $updateData['id_kriteria'] = $data['kriteria_id']; 
-                $updateData['status'] = 'draft';
-            }
-            elseif ($user->role === 'p2') {
-                $updateData['nilai_target'] = $data['nilai_target'];
-                $updateData['id_kriteria'] = $data['kriteria_id'];
-                $updateData['status_target'] = '';
-            }
+foreach ($kriteriaData as $data) {
+    $updateData = [
+        'updated_at' => now(),
+        'modul'      => $modul,
+        'id_kriteria'=> $data['kriteria_id']
+    ];
 
-            if ($existingRow) {
-                DB::table('penilaian_kriteria')
-                    ->where('id_penilaian', $existingRow->id_penilaian)
-                    ->update($updateData);
-            } else {
-                $updateData['id_indikator'] = $id_indikator;
-                $updateData['tahun'] = $tahun;
-                $updateData['id_kriteria'] = $data['kriteria_id'];
-                $updateData['created_at'] = now();
-                DB::table('penilaian_kriteria')->insert($updateData);
-                
-                $existingRow = DB::table('penilaian_kriteria')
-                    ->where(['id_indikator' => $id_indikator, 'tahun' => $tahun])
-                    ->first();
-            }
+    // Pemetaan Role ke Kolom Nilai
+    if ($user->role === 'verifikator') {
+        if (!$existingRow || is_null($existingRow->nilai_asesor_internal)) {
+            throw new \Exception('Verifikator belum bisa memberi nilai karena User belum mengisi penilaian.');
         }
+        $updateData['nilai_verifikator_internal'] = $data['nilai_verifikator_internal'];
+        $updateData['status'] = 'final'; 
+    } 
+    elseif ($user->role === 'admin') {
+        if (isset($data['nilai_asesor_external'])) $updateData['nilai_asesor_external'] = $data['nilai_asesor_external'];
+        if (isset($data['nilai_akhir_external'])) $updateData['nilai_akhir_external'] = $data['nilai_akhir_external'];
+        $updateData['status_monitor'] = 'draft';
+    } 
+    elseif ($user->role === 'user') { 
+        $updateData['nilai_asesor_internal'] = $data['nilai_asesor_internal'];
+        $updateData['status'] = 'draft';
+    }
+    elseif ($user->role === 'p2') {
+        $updateData['nilai_target'] = $data['nilai_target'];
+        $updateData['status_target'] = '';
+    }
+
+    // MENGGUNAKAN UPDATE OR INSERT UNTUK MENCEGAH DUPLIKASI
+    DB::table('penilaian_kriteria')->updateOrInsert(
+        [
+            'id_indikator' => $id_indikator,
+            'tahun'        => $tahun,
+            'modul'        => $modul
+        ],
+        $updateData
+    );
+
+    // Update existingRow agar pengecekan di luar loop (untuk nilaiDashboard) akurat
+    if (!$existingRow) {
+        $existingRow = DB::table('penilaian_kriteria')
+            ->where(['id_indikator' => $id_indikator, 'tahun' => $tahun, 'modul' => $modul])
+            ->first();
+    }
+}
 
        $current = DB::table('penilaian_kriteria')
-    ->where(['id_indikator' => $id_indikator, 'tahun' => $tahun])
+    ->where(['id_indikator' => $id_indikator, 'tahun' => $tahun, 'modul'        => $modul])
+    
     ->first();
 
 $nilaiDashboardInternal = $current->nilai_verifikator_internal 
                         ?? $current->nilai_asesor_internal; 
 
 DB::table('penilaian_indikator')->updateOrInsert(
-    ['id_indikator' => $id_indikator, 'tahun' => $tahun],
+    ['id_indikator' => $id_indikator, 
+    'tahun' => $tahun,
+    'modul' => $modul],
     [
         'nilai' => $nilaiDashboardInternal ?? 0, 
-        'updated_at' => now()
+        'updated_at' => now(),
+        'status'     => 'draft'
     ]
 );
 
@@ -290,6 +305,7 @@ public function getDetailIndikator(Request $request, $id)
 {
     try {
         $tahun = $request->query('tahun');
+        $modul = $request->query('modul');
 
         $detail = DB::table('indikator')
             ->leftJoin('penjelasan_indikator', 'indikator.id_indikator', '=', 'penjelasan_indikator.id_indikator')
@@ -303,8 +319,12 @@ public function getDetailIndikator(Request $request, $id)
             )
             ->first();
 
-       $kriteria = DB::table('penilaian_kriteria')->where(['id_indikator' => $id, 'tahun' => $tahun])->get();
-        $catatan = DB::table('catatan_kriteria')->where(['id_indikator' => $id, 'tahun' => $tahun])->first();
+$kriteria = DB::table('penilaian_kriteria')
+            ->where([
+                'id_indikator' => $id, 
+                'tahun'        => $tahun,
+                'modul'        => $modul // WAJIB ADA
+            ])->get();        $catatan = DB::table('catatan_kriteria')->where(['id_indikator' => $id, 'tahun' => $tahun])->first();
         
         $logs = [];
         if ($catatan) {
@@ -347,6 +367,26 @@ public function getKriteriaMaster(Request $request, $id_indikator)
         ]);
     } catch (\Exception $e) {
         return response()->json(['message' => $e->getMessage()], 500);
+    }
+}
+public function finalisasiEksternal(Request $request)
+{
+    try {
+        $tahun = $request->tahun;
+        $modul = $request->modul;
+
+        DB::table('penilaian_kriteria')
+            ->where('tahun', $tahun)
+            ->where('modul', $modul)
+            ->where('status_monitor', 'draft')
+            ->update([
+                'status_monitor' => 'final',
+                'updated_at' => now()
+            ]);
+
+        return back()->with('success', 'Seluruh penilaian eksternal tahun ' . $tahun . ' telah berhasil difinalisasi.');
+    } catch (\Exception $e) {
+        return back()->with('error', 'Gagal finalisasi: ' . $e->getMessage());
     }
 }
 }

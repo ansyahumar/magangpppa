@@ -138,33 +138,21 @@
 </div>
 
 <!-- Floating Action -->
-@if($statusPenilaian !== 'final')
-    <div class="fixed bottom-8 left-8 z-40">
-        <form id="form-finalisasi" method="POST" action="{{ route('penilaian.finalisasi_verifikator') }}">
-            @csrf
-            <input type="hidden" name="tahun" value="{{ $tahun }}">
-
-            <button
-                type="submit"
-                class="group flex items-center gap-3 px-4 py-2 bg-red-600 text-white font-black rounded-2xl shadow-xl hover:bg-red-700 transition-all transform hover:scale-105"
-            >
-                <div class="p-2 bg-red-700 rounded-lg group-hover:bg-red-800">
-                    <i class="fa-solid fa-lock text-xl"></i>
-                </div>
-                <div class="text-left">
-                    <span class="block text-xs uppercase tracking-widest opacity-80"></span>
-                    <span class="block text-lg">Finalisasi Penilaian</span>
-                </div>
-            </button>
-        </form>
-    </div>
+<!-- Bagian Tombol Finalisasi di Form Verifikasi -->
+@if($statusPenilaian != 'final')
+<form id="form-finalisasi" action="{{ route('verifikator.finalisasi') }}" method="POST">
+    @csrf
+    <input type="hidden" name="tahun" value="{{ $tahun }}">
+    <input type="hidden" name="modul" value="{{ $modul }}">
+    
+    <button type="submit" class="bg-red-600 text-white px-6 py-2 rounded-xl font-bold hover:bg-red-700 transition-all">
+        Finalisasi Penilaian {{ strtoupper($modul) }}
+    </button>
+</form>
 @else
-    <div class="fixed bottom-8 left-8">
-        <div class="bg-gray-700 text-white px-6 py-3 rounded-xl shadow-lg flex items-center gap-3">
-            <i class="fa-solid fa-circle-check text-emerald-400"></i>
-            <span class="font-bold">Status: Penilaian Terkunci (Final)</span>
-        </div>
-    </div>
+<div class="bg-emerald-100 text-emerald-700 px-6 py-2 rounded-xl font-bold border border-emerald-200">
+    <i class="fa-solid fa-lock mr-2"></i> Penilaian {{ strtoupper($modul) }} Terkunci (Final)
+</div>
 @endif
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -429,14 +417,14 @@ html += `
         });
     }
 
-    saveBtn.onclick = async () => {
-        const checked = content.querySelector('.kriteria-cb:checked');
-        const pencapaianVerif = document.getElementById('pencapaian-verif')?.value || '';
+saveBtn.onclick = async () => {
+    const checked = content.querySelector('.kriteria-cb:checked');
+    const pencapaianVerif = document.getElementById('pencapaian-verif')?.value || '';
 
-        if (!checked) {
-            Swal.fire('Peringatan', 'Silakan pilih salah satu kriteria verifikasi sebelum menyimpan.', 'warning');
-            return;
-        }
+    if (!checked) {
+        Swal.fire('Peringatan', 'Silakan pilih salah satu kriteria verifikasi sebelum menyimpan.', 'warning');
+        return;
+    }
 
         const confirmTitle = isEditMode ? 'Update Data (Mode Edit)?' : 'Simpan Data Verifikasi?';
         const confirmText = isEditMode 
@@ -452,43 +440,47 @@ html += `
             cancelButtonColor: '#64748b',
             confirmButtonText: 'Ya, Simpan'
         });
-        if (result.isConfirmed) {
-            Swal.fire({ title: 'Sedang Menyimpan...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+if (result.isConfirmed) {
+        Swal.fire({ title: 'Sedang Menyimpan...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
-            const fd = new FormData();
-            const kriteria = [{
-                kriteria_id: checked.dataset.kriteria,
-                nilai_verifikator_internal: checked.value
-            }];
+        const fd = new FormData();
+        const kriteria = [{
+            kriteria_id: checked.dataset.kriteria,
+            nilai_verifikator_internal: checked.value
+        }];
 
-            fd.append('tahun', tahunAktif);
-            fd.append('id_indikator', activeIndikatorId);
-            fd.append('kriteria', JSON.stringify(kriteria));
-            fd.append('pencapaian', pencapaianVerif);
-            fd.append('is_edit_mode', isEditMode ? '1' : '0');
-            fd.append('_token', '{{ csrf_token() }}');
+        fd.append('tahun', tahunAktif);
+        fd.append('id_indikator', activeIndikatorId);
+        fd.append('modul', "{{ $modul }}"); // <--- TAMBAHKAN INI (Sangat Penting)
+        fd.append('kriteria', JSON.stringify(kriteria));
+        fd.append('pencapaian', pencapaianVerif);
+        fd.append('is_edit_mode', isEditMode ? '1' : '0');
+        fd.append('_token', '{{ csrf_token() }}');
+           try {
+            // Pastikan URL ini sesuai dengan yang ada di routes/web.php Anda
+            // Jika di web.php adalah 'verifikator.storeVerifikasi', gunakan:
+            // const res = await fetch("{{ route('verifikator.storeVerifikasi') }}", {
+            
+            const res = await fetch("{{ route('verifikator.storeVerifikasi') }}", {
+                method: 'POST',
+                body: fd,
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
 
-            try {
-                const res = await fetch('/penilaian-kriteria/store', {
-                    method: 'POST',
-                    body: fd,
-                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
-                });
-
-                const responseData = await res.json();
-                if (res.ok) {
-                    Swal.fire('Berhasil', isEditMode ? 'Perubahan berhasil disimpan.' : 'Data berhasil diinput.', 'success')
-                        .then(() => window.location.reload());
-                } else {
-                    throw new Error(responseData.message || 'Gagal menyimpan data.');
-                }
-            } catch (e) {
-                console.error(e);
-                Swal.fire('Error Sistem', 'Gagal memproses permintaan: ' + e.message, 'error');
-            }
-        }
-    };
-
+            const responseData = await res.json();
+            if (res.ok) {
+                Swal.fire('Berhasil', isEditMode ? 'Perubahan berhasil disimpan.' : 'Data berhasil diinput.', 'success')
+                    .then(() => window.location.reload());
+            } else {
+                // Ini yang menangkap pesan "Gagal: Verifikator belum bisa memberi nilai..."
+                throw new Error(responseData.message || 'Gagal menyimpan data.');
+            }
+        } catch (e) {
+            console.error(e);
+            Swal.fire('Error Sistem', e.message, 'error');
+        }
+    }
+};
     document.querySelectorAll('.indikator-item').forEach(btn => {
         btn.onclick = (e) => {
             e.preventDefault();
@@ -505,43 +497,82 @@ html += `
 const formFinalisasi = document.getElementById('form-finalisasi');
 
 if (formFinalisasi) {
-    formFinalisasi.onsubmit = async (e) => {
-        e.preventDefault();
+    formFinalisasi.onsubmit = async (e) => {
+        e.preventDefault(); // Stop form
+        console.log("Tombol Finalisasi ditekan...");
 
-        const allRows = Array.from(document.querySelectorAll('tbody tr'));
-        const emptyRows = allRows.filter(row => row.innerText.includes('Belum Diverif'));
+        // 1. Deteksi baris yang belum diverifikasi
+        // Kita cari teks 'Belum Diverif' tanpa mempedulikan spasi atau huruf besar/kecil
+        const allRows = Array.from(document.querySelectorAll('tbody tr'));
+        
+        const emptyRows = allRows.filter(row => {
+            const text = row.innerText || "";
+            // Cek apakah mengandung kata kunci 'Belum Diverif' atau nilai verifikatornya 0
+            return text.toLowerCase().includes('belum diverif');
+        });
 
-        if (emptyRows.length > 0) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Gagal Finalisasi',
-                text: `Masih ada ${emptyRows.length} indikator yang belum Anda verifikasi.`,
-                confirmButtonText: 'Cari Indikator',
-                confirmButtonColor: '#2563eb'
-            }).then(() => {
-                emptyRows[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
-                emptyRows[0].classList.add('bg-red-100'); // Highlight sementara
-                setTimeout(() => emptyRows[0].classList.remove('bg-red-100'), 3000);
-            });
-            return false;
-        }
+        console.log("Jumlah baris kosong ditemukan:", emptyRows.length);
 
-        const confirm = await Swal.fire({
-            title: 'Kunci Data Sekarang?',
-            html: `Data akan dihitung dan status berubah menjadi <b>FINAL</b>. <br><span class="text-red-500 font-bold text-xs uppercase">Tindakan ini tidak dapat dibatalkan!</span>`,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            cancelButtonColor: '#64748b',
-            confirmButtonText: 'Ya, Hitung & Kunci!',
-            cancelButtonText: 'Batal'
-        });
+        // 2. JIKA ADA DATA KOSONG
+        if (emptyRows.length > 0) {
+            console.log("Peringatan muncul: Data belum lengkap");
+            
+            await Swal.fire({
+                icon: 'error',
+                title: 'Gagal Finalisasi',
+                text: `Masih ada ${emptyRows.length} indikator yang belum Anda verifikasi.`,
+                confirmButtonText: 'Cari Indikator',
+                confirmButtonColor: '#2563eb',
+                returnFocus: false // AGAR TIDAK SCROLL BALIK KE BAWAH
+            });
 
-        if (confirm.isConfirmed) {
-            Swal.fire({ title: 'Memproses...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-            formFinalisasi.submit();
-        }
-    };
+            // Jalankan Scroll
+            setTimeout(() => {
+                const targetRow = emptyRows[0];
+                targetRow.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'center' 
+                });
+
+                // Tambahkan efek visual kuat
+                targetRow.style.backgroundColor = "#fee2e2"; // Red 100
+                targetRow.style.outline = "2px solid #ef4444"; // Red 500
+                
+                setTimeout(() => {
+                    targetRow.style.backgroundColor = "";
+                    targetRow.style.outline = "";
+                }, 4000);
+            }, 300);
+
+            return; // Berhenti di sini
+        }
+
+        // 3. JIKA DATA SUDAH LENGKAP - KONFIRMASI FINALISASI
+        console.log("Data lengkap, memunculkan modal konfirmasi...");
+        
+        const confirm = await Swal.fire({
+            title: 'Kunci Data Sekarang?',
+            html: `Data akan dihitung dan status berubah menjadi <b>FINAL</b>. <br><span class="text-red-500 font-bold text-xs uppercase">Tindakan ini tidak dapat dibatalkan!</span>`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: 'Ya, Hitung & Kunci!',
+            cancelButtonText: 'Batal',
+            returnFocus: false
+        });
+
+        if (confirm.isConfirmed) {
+            Swal.fire({ 
+                title: 'Memproses...', 
+                allowOutsideClick: false, 
+                didOpen: () => Swal.showLoading() 
+            });
+            
+            console.log("Form dikirim ke server...");
+            formFinalisasi.submit();
+        }
+    };
 }
 </script>
 @endsection

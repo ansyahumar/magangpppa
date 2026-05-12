@@ -8,27 +8,28 @@ use App\Models\Domain;
 class PenilaianHelper 
 {
    
-    public static function getHierarchy($tahun = null)
-{
-   
-    $tahun = $tahun ?? date('Y');
+    public static function getHierarchy($tahun = null, $modul = 'spbe')
+    {
+        $tahun = $tahun ?? date('Y');
 
-    return Domain::where('tahun', $tahun)
-        ->with([
-            'aspek' => function($q) use ($tahun) {
-                $q->where('tahun', $tahun);
-            },
-            'aspek.indikator' => function($q) use ($tahun) {
-                $q->where('tahun', $tahun);
-            },
-            'aspek.bobotAspek',
-            'bobotDomain'
-        ])
-        ->get();
-}
-   public static function calculateIndices($tahun)
+        return Domain::where('tahun', $tahun)
+            ->where('modul', $modul)
+            ->with([
+                'aspek' => function($q) use ($tahun) {
+                    $q->where('tahun', $tahun);
+                },
+                'aspek.indikator' => function($q) use ($tahun) {
+                    $q->where('tahun', $tahun);
+                },
+                'aspek.bobotAspek',
+                'bobotDomain'
+            ])
+            ->get();
+    }
+   public static function calculateIndices($tahun, $modul = 'spbe')
 {
     $penilaian = DB::table('penilaian_kriteria')
+        ->where('modul', $modul)
         ->where('tahun', $tahun)
         ->where('status', 'final')
         ->get();
@@ -37,7 +38,10 @@ class PenilaianHelper
         return ['spbe' => 0, 'predikat' => 'Data Kosong'];
     }
 
-   $map = DB::table('aspek')->pluck('id_domain', 'id_aspek')->toArray();
+   $map = DB::table('aspek')
+            ->join('domain', 'aspek.id_domain', '=', 'domain.id_domain')
+            ->where('domain.modul', $modul)
+            ->pluck('aspek.id_domain', 'aspek.id_aspek')->toArray();
 
  $n_aspek = DB::table('bobot_aspek')->where('tahun', $tahun)->pluck('bobot', 'id_aspek');
 $n_domain = DB::table('bobot_domain')->where('tahun', $tahun)->pluck('bobot', 'id_domain');
@@ -96,7 +100,7 @@ $n_domain = DB::table('bobot_domain')->where('tahun', $tahun)->pluck('bobot', 'i
         $domain_results[$id_dom] = $nilai_domain_kalkulasi;
 
         DB::table('domain_hasil')->updateOrInsert(
-            ['id_domain' => $id_dom, 'tahun' => $tahun],
+            ['id_domain' => $id_dom, 'tahun' => $tahun, ],
             ['nilai_domain' => round($nilai_domain_kalkulasi, 2)]
         );
 
@@ -105,14 +109,22 @@ $n_domain = DB::table('bobot_domain')->where('tahun', $tahun)->pluck('bobot', 'i
 
     $final_spbe = round($total_spbe, 2);
 
-    DB::table('hasil_indeks')->updateOrInsert(
-        ['tahun' => $tahun],
-        [
-            'indeks_spbe' => $final_spbe,
-            'predikat' => self::getPredikat($final_spbe),
-            'updated_at' => now()
-        ]
-    );
+   // Contoh modifikasi di PenilaianHelper.php
+// Hitung rata-rata dari semua nilai aspek
+$rataRataAspek = count($m_aspek) > 0 ? array_sum($m_aspek) / count($m_aspek) : 0;
+// Hitung rata-rata dari semua nilai domain
+$rataRataDomain = count($domain_results) > 0 ? array_sum($domain_results) / count($domain_results) : 0;
+
+DB::table('hasil_indeks')->updateOrInsert(
+    ['tahun' => $tahun, 'modul' => $modul],
+    [
+        'indeks_spbe'   => $final_spbe,
+        'predikat'      => self::getPredikat($final_spbe),
+        'indeks_aspek'  => round($rataRataAspek, 2),  // Menyimpan angka tunggal (desimal)
+        'indeks_domain' => round($rataRataDomain, 2), // Menyimpan angka tunggal (desimal)
+        'updated_at'    => now()
+    ]
+);
 
     return [
         'spbe' => $final_spbe,
@@ -123,9 +135,10 @@ $n_domain = DB::table('bobot_domain')->where('tahun', $tahun)->pluck('bobot', 'i
 }
 
     
-public static function calculateTarget($tahun)
+public static function calculateTarget($tahun, $modul = 'spbe')
     {
          $indikator = DB::table('penilaian_kriteria as pk')
+            ->where('modul', $modul)
             ->join('indikator as i', 'pk.id_indikator', '=', 'i.id_indikator')
             ->select('i.id_aspek', 'pk.nilai_target')
             ->where('pk.tahun', $tahun)
@@ -136,8 +149,10 @@ public static function calculateTarget($tahun)
             return ['target_spbe' => 0];
         }
 
-         $map = DB::table('aspek')->pluck('id_domain', 'id_aspek')->toArray();
-
+         $map = DB::table('aspek')
+            ->join('domain', 'aspek.id_domain', '=', 'domain.id_domain')
+            ->where('domain.modul', $modul)
+            ->pluck('aspek.id_domain', 'aspek.id_aspek')->toArray();
       $n_aspek = DB::table('bobot_aspek')->where('tahun', $tahun)->pluck('bobot', 'id_aspek');
 $n_domain = DB::table('bobot_domain')->where('tahun', $tahun)->pluck('bobot', 'id_domain');
 
@@ -189,7 +204,7 @@ $n_domain = DB::table('bobot_domain')->where('tahun', $tahun)->pluck('bobot', 'i
             $domain_final_results[$id_dom] = $nilai_domain_kalkulasi;
 
             DB::table('domain_hasil')->updateOrInsert(
-                ['id_domain' => $id_dom, 'tahun' => $tahun],
+                ['id_domain' => $id_dom, 'tahun' => $tahun,],
                 ['target' => round($nilai_domain_kalkulasi, 2)]
             );
 
@@ -215,9 +230,10 @@ $n_domain = DB::table('bobot_domain')->where('tahun', $tahun)->pluck('bobot', 'i
         }
         return ($relation && isset($relation->bobot)) ? (float) $relation->bobot : 0;
     }
-public static function calculateVerifikator($tahun)
+public static function calculateVerifikator($tahun, $modul = 'spbe')
 {
      $penilaian = DB::table('penilaian_kriteria')
+     ->where('modul', $modul)
         ->where('tahun', $tahun)
         ->where('status', 'final')
         ->get();
@@ -226,8 +242,10 @@ public static function calculateVerifikator($tahun)
         return ['spbe' => 0, 'predikat' => 'Data Kosong'];
     }
 
-    $map = DB::table('aspek')->pluck('id_domain', 'id_aspek')->toArray();
-
+    $map = DB::table('aspek')
+            ->join('domain', 'aspek.id_domain', '=', 'domain.id_domain')
+            ->where('domain.modul', $modul)
+            ->pluck('aspek.id_domain', 'aspek.id_aspek')->toArray();
    $n_aspek = DB::table('bobot_aspek')->where('tahun', $tahun)->pluck('bobot', 'id_aspek');
 $n_domain = DB::table('bobot_domain')->where('tahun', $tahun)->pluck('bobot', 'id_domain');
 
@@ -282,7 +300,7 @@ $n_domain = DB::table('bobot_domain')->where('tahun', $tahun)->pluck('bobot', 'i
         }
 
         DB::table('domain_hasil')->updateOrInsert(
-            ['id_domain' => $id_dom, 'tahun' => $tahun],
+            ['id_domain' => $id_dom, 'tahun' => $tahun,],
             ['domain_verif' => round($nilai_domain_kalkulasi, 2)]
         );
 
@@ -292,7 +310,7 @@ $n_domain = DB::table('bobot_domain')->where('tahun', $tahun)->pluck('bobot', 'i
     $final_spbe = round($total_spbe, 2);
 
     DB::table('hasil_indeks')->updateOrInsert(
-        ['tahun' => $tahun],
+        ['tahun' => $tahun, 'modul' => $modul],
         [
             'indeks_verif' => $final_spbe,
             'updated_at' => now()
@@ -305,9 +323,10 @@ $n_domain = DB::table('bobot_domain')->where('tahun', $tahun)->pluck('bobot', 'i
     ];
 }
 
-public static function calculateEksternal($tahun)
+public static function calculateEksternal($tahun,$modul = 'spbe')
 {
     $penilaian = DB::table('penilaian_kriteria')
+        ->where('modul', $modul)
         ->where('tahun', $tahun)
         ->where('status', 'final')
         ->whereNotNull('nilai_asesor_external')
@@ -315,7 +334,10 @@ public static function calculateEksternal($tahun)
 
     if ($penilaian->isEmpty()) return ['spbe_eksternal' => 0];
 
-    $map = DB::table('aspek')->pluck('id_domain', 'id_aspek')->toArray();
+    $map = DB::table('aspek')
+            ->join('domain', 'aspek.id_domain', '=', 'domain.id_domain')
+            ->where('domain.modul', $modul)
+            ->pluck('aspek.id_domain', 'aspek.id_aspek')->toArray();
     $n_aspek = DB::table('bobot_aspek')->where('tahun', $tahun)->pluck('bobot', 'id_aspek');
     $n_domain = DB::table('bobot_domain')->where('tahun', $tahun)->pluck('bobot', 'id_domain');
     $indikatorMap = DB::table('indikator')->where('tahun', $tahun)->pluck('id_aspek', 'id_indikator');
@@ -363,16 +385,17 @@ public static function calculateEksternal($tahun)
 
     $final_spbe = round($total_spbe, 2);
     DB::table('hasil_indeks')->updateOrInsert(
-        ['tahun' => $tahun],
+        ['tahun' => $tahun,'modul' => $modul],
         ['indeks_eksternal' => $final_spbe, 'updated_at' => now()]
     );
 
     return ['spbe_eksternal' => $final_spbe];
 }
 
-public static function calculateAkhirEksternal($tahun)
+public static function calculateAkhirEksternal($tahun, $modul = 'spbe')
 {
     $penilaian = DB::table('penilaian_kriteria')
+    ->where('modul', $modul)
         ->where('tahun', $tahun)
         ->where('status', 'final')
         ->whereNotNull('nilai_akhir_external')
@@ -380,7 +403,10 @@ public static function calculateAkhirEksternal($tahun)
 
     if ($penilaian->isEmpty()) return ['spbe_akhir' => 0];
 
-    $map = DB::table('aspek')->pluck('id_domain', 'id_aspek')->toArray();
+    $map = DB::table('aspek')
+            ->join('domain', 'aspek.id_domain', '=', 'domain.id_domain')
+            ->where('domain.modul', $modul)
+            ->pluck('aspek.id_domain', 'aspek.id_aspek')->toArray();
     $n_aspek = DB::table('bobot_aspek')->where('tahun', $tahun)->pluck('bobot', 'id_aspek');
     $n_domain = DB::table('bobot_domain')->where('tahun', $tahun)->pluck('bobot', 'id_domain');
     $indikatorMap = DB::table('indikator')->where('tahun', $tahun)->pluck('id_aspek', 'id_indikator');
@@ -430,7 +456,7 @@ public static function calculateAkhirEksternal($tahun)
 
     $final_spbe = round($total_spbe, 2);
     DB::table('hasil_indeks')->updateOrInsert(
-        ['tahun' => $tahun],
+        ['tahun' => $tahun, 'modul' => $modul],
         ['indeks_akhir_eksternal' => $final_spbe, 'updated_at' => now()]
     );
 

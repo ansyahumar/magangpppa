@@ -9,11 +9,7 @@ class Domain extends Model
     protected $table = 'domain';
     protected $primaryKey = 'id_domain';
     public $timestamps = false;
-protected $fillable = [
-        'nama_domain',
-        'tahun',
-        'urutan'
-    ];
+protected $fillable = ['nama_domain', 'tahun', 'modul', 'urutan'];
     public function aspek()
     {
         return $this->hasMany(Aspek::class, 'id_domain', 'id_domain');

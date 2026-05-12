@@ -11,10 +11,17 @@ use Illuminate\Support\Facades\Validator;
 class UserController extends Controller
 {
     public function index()
-    {
-        $users = User::latest()->paginate(10);
-        return view('admin.users.index', compact('users'));
-    }
+{
+    // Mengambil data user dengan pagination
+    $users = User::latest()->paginate(10);
+
+    // Mengambil data dari tabel satuan untuk dropdown di modal tambah/edit
+    // Kita urutkan berdasarkan nama satuan agar rapi di dropdown
+    $satuanKerja = \DB::table('satuan')->orderBy('satuan', 'asc')->get();
+
+    // Kirim kedua variabel ke view
+    return view('admin.users.index', compact('users', 'satuanKerja'));
+}
 
     public function store(Request $request)
     {
@@ -22,7 +29,7 @@ class UserController extends Controller
             'name'     => 'required|string|max:255',
             'email'    => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8',
-            'role'     => 'required|in:admin,verifikator,user,p1,p2',
+            'role' => 'required|in:admin,verifikator,user,p1,p2,kordinator',
             'unit'     => 'nullable|string',
             'no_id'    => 'nullable|string',
         ]);
@@ -55,7 +62,7 @@ class UserController extends Controller
     $request->validate([
         'name' => 'required',
         'email' => 'required|email|unique:users,email,' . $user->id,
-        'role' => 'required',
+        'role' => 'required|in:admin,verifikator,user,p1,p2,kordinator',
         'status' => 'required|in:active,inactive',
         'unit'   => 'nullable|string',
         'no_id'  => 'nullable|string', 

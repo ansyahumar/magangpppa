@@ -1,7 +1,7 @@
 @extends('layouts.p2')
 
 @include('layouts.fav')
-<title>Dashboard SPBE</title>
+<title>Dashboard {{ strtoupper($modul) }}</title>
 
 @section('content')
 <style>
@@ -30,27 +30,46 @@
      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8 animate-fade-in-up">
         <div>
             <h2 class="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">
-                Dashboard <span class="text-blue-600">Target SPBE</span>
-            </h2>
+    Dashboard <span class="text-blue-600">Target {{ strtoupper($modul) }}</span>
+</h2>
             <p class="text-gray-500 dark:text-gray-400 text-sm italic">Visualisasi data capaian berkelanjutan seluruh periode.</p>
         </div>
 
-        <form id="formTahun" method="GET" action="{{ url()->current() }}" class="relative group">
-            <div class="relative flex items-center">
-                <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                    <svg class="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                </div>
-                <select name="tahun" onchange="this.form.submit()" 
-                        class="block w-full md:w-64 pl-11 pr-10 py-3 text-sm font-bold border-none ring-1 ring-gray-200 dark:ring-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 rounded-2xl shadow-sm focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer transition-all">
-                    <option value="all" {{ (string)$tahunDipilih === 'all' ? 'selected' : '' }}>Semua Tahun (Trend)</option>
-                    @foreach($tahunList as $tahun)
-                        <option value="{{ $tahun }}" {{ (string)$tahunDipilih === (string)$tahun ? 'selected' : '' }}>Periode Data {{ $tahun }}</option>
-                    @endforeach
-                </select>
-            </div>
-        </form>
+<form id="formFilter" method="GET" action="{{ url()->current() }}" class="flex flex-col md:flex-row gap-4 animate-fade-in-up">
+    <div class="relative flex-1 md:flex-none">
+        <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+            <svg class="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+        </span>
+        <select name="modul" onchange="this.form.submit()" 
+                class="block w-full md:w-56 pl-10 pr-10 py-3 text-sm font-bold border-none ring-1 ring-gray-200 dark:ring-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 rounded-2xl shadow-sm focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer hover:bg-gray-50 transition-all duration-200">
+            <option value="spbe" {{ $modul == 'spbe' ? 'selected' : '' }}>Modul SPBE</option>
+            <option value="pemdi" {{ $modul == 'pemdi' ? 'selected' : '' }}>Modul PEMDI</option>
+        </select>
+        <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-400">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M19 9l-7 7-7-7" stroke-width="2"/></svg>
+        </div>
+    </div>
+
+    <div class="relative flex-1 md:flex-none">
+        <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <svg class="h-5 w-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+        </span>
+        <select name="tahun" onchange="this.form.submit()" 
+                class="block w-full md:w-64 pl-10 pr-10 py-3 text-sm font-bold border-none ring-1 ring-gray-200 dark:ring-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 rounded-2xl shadow-sm focus:ring-2 focus:ring-emerald-500 appearance-none cursor-pointer hover:bg-gray-50 transition-all duration-200">
+            <option value="all" {{ $tahunDipilih === 'all' ? 'selected' : '' }}>Trend Seluruh Tahun</option>
+            @foreach($tahunList as $tahun)
+                <option value="{{ $tahun }}" {{ (string)$tahunDipilih === (string)$tahun ? 'selected' : '' }}>Periode Data {{ $tahun }}</option>
+            @endforeach
+        </select>
+        <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-400">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M19 9l-7 7-7-7" stroke-width="2"/></svg>
+        </div>
+    </div>
+</form>
     </div>
 
     <div class="bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 mb-8 chart-card animate-scale-in delay-1" 

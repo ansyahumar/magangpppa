@@ -1,5 +1,6 @@
 @extends('admin.layouts.app')
     <title>Manajemen Akun</title>
+    @include('layouts.fav')
 @section('content')
 <style>
     [x-cloak] { display: none !important; }
@@ -24,11 +25,27 @@
     editMode: false,
     loading: false,
     showPassword: false,
-   userData: { id: null, name: '', email: '', role: 'user', status: 'active', unit: '', no_id: '' },
+    userData: { id: null, name: '', email: '', role: 'user', status: 'active', unit: '', no_id: '' },
+    
+    // Simpan data satuan dari Laravel ke JS
+    daftarSatuan: {{ json_encode($satuanKerja) }},
+
+    // Fungsi untuk update otomatis no_id
+    updateNoId(selectedUnit) {
+        // Cari unit yang cocok di dalam daftarSatuan
+        const unitDitemukan = this.daftarSatuan.find(s => s.satuan === selectedUnit);
+        
+        if (unitDitemukan) {
+            this.userData.no_id = unitDitemukan.no_indikator;
+        } else {
+            this.userData.no_id = '';
+        }
+    },
+
     initAdd() {
         this.editMode = false;
         this.showPassword = false;
-        this.userData = { id: null, name: '', email: '', role: 'user', unit: '', no_id: '' };
+        this.userData = { id: null, name: '', email: '', role: 'user', status: 'active', unit: '', no_id: '' };
         this.openModal = true;
     },
     
@@ -256,21 +273,23 @@
         <option value="inactive">Nonaktif</option>
     </select>
 </div>
-<div class="grid grid-cols-2 gap-4">
-    <div>
-        <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Unit Kerja</label>
-        <input type="text" name="unit" 
-               x-model="userData.unit"
-               placeholder="Contoh: Biro SDM" 
-               class="w-full px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all">
-    </div>
-    <div>
-        <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">ID Indikator (Manual)</label>
-        <input type="text" name="no_id" 
-               x-model="userData.no_id"
-               placeholder="E.g: 7" 
-               class="w-full px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all">
-    </div>
+<div>
+    <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Unit Kerja</label>
+    <select name="unit" 
+            x-model="userData.unit"
+            @change="updateNoId($event.target.value)"
+            class="w-full px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all">
+        <option value="">-- Pilih Unit Kerja --</option>
+        @foreach($satuanKerja as $satuan)
+            <option value="{{ $satuan->satuan }}">{{ $satuan->satuan }}</option>
+        @endforeach
+    </select>
+    <input type="hidden" name="no_id" x-model="userData.no_id">
+
+<div class="mt-2">
+    <label class="block text-xs font-bold text-gray-500 uppercase">Preview No ID Indikator (Otomatis)</label>
+    <div class="px-4 py-2 bg-gray-100 dark:bg-gray-900 rounded-lg text-blue-600 font-black text-sm" x-text="userData.no_id || '-'"></div>
+</div>
 </div>
                   <div>
     <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">

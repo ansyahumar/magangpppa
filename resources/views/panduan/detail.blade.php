@@ -1,4 +1,21 @@
 <script src="https://cdn.tailwindcss.com"></script>
+<script>
+    (function() {
+        // Tambahkan banyak spasi di akhir agar ada jeda jeda saat teks berulang
+        let title = "@yield('title', 'Tata cara dan Penjelasan Penilaian')          "; 
+        const speed = 200; // Kecepatan 200ms biasanya paling 'smooth' untuk teks tab
+        
+        function scrollTitle() {
+            // Gunakan document.title secara langsung tanpa mengambil variabel lama
+            document.title = title;
+            title = title.substring(1) + title.substring(0, 1);
+            setTimeout(scrollTitle, speed);
+        }
+        
+        scrollTitle();
+    })();
+</script>
+@include('layouts.fav')
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <head>
 <style>

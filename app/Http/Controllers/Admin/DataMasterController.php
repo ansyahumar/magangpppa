@@ -18,12 +18,13 @@ class DataMasterController extends Controller
 public function monitoring(Request $request)
 {
     $tahun = $request->get('tahun', date('Y'));
-
+    $modul = $request->get('modul', 'spbe');
     $availableYears = DB::table('domain')->distinct()->pluck('tahun')->toArray(); 
     
 
 
 $domains = Domain::where('tahun', $tahun)
+    ->where('modul', $modul)
     ->orderBy('urutan', 'asc')
     ->with(['aspek' => function($q) {
         $q->orderBy('urutan', 'asc');
@@ -33,28 +34,39 @@ $domains = Domain::where('tahun', $tahun)
     ->get();
 
     $draft = DB::table('penilaian_kriteria')
+                ->where('modul', $modul)
                 ->where('tahun', $tahun)
                 ->get()
                 ->keyBy('id_indikator'); 
 
     try {
-        $finalizedYears = DB::table('penilaian_final')->pluck('tahun')->toArray();
+        $finalizedYears = DB::table('hasil_indeks')
+                ->where('modul', $modul)
+                ->pluck('tahun')
+                ->toArray();
     } catch (\Exception $e) {
         $finalizedYears = []; 
     }
 
-    return view('admin.monitor', compact('availableYears', 'tahun', 'finalizedYears', 'domains', 'draft'));
+    return view('admin.monitor', compact('availableYears', 'tahun', 'finalizedYears', 'domains', 'draft', 'modul'));
 }
-   public function index(Request $request)
+public function index(Request $request)
 {
     $tahunDipilih = $request->input('tahun', date('Y'));
-    
-    $availableYears = Domain::distinct()->orderBy('tahun', 'asc')->pluck('tahun');
+    $modul = $request->input('modul', 'spbe');
+
+    // PERBAIKAN: Filter tahun hanya yang ada di modul terkait
+    $availableYears = Domain::where('modul', $modul)
+        ->distinct()
+        ->orderBy('tahun', 'asc')
+        ->pluck('tahun');
+
     if ($availableYears->isEmpty()) {
         $availableYears = collect([(int)$tahunDipilih]);
     }
 
     $domain = Domain::where('tahun', $tahunDipilih)
+        ->where('modul', $modul)
         ->with([
             'aspek' => function($q) use ($tahunDipilih) {
                 $q->where('tahun', $tahunDipilih)->orderBy('urutan', 'asc');
@@ -71,42 +83,44 @@ $domains = Domain::where('tahun', $tahun)
     return view('admin.master.index', [
         'domain' => $domain,
         'availableYears' => $availableYears,
-        'tahunDipilih' => $tahunDipilih
+        'tahunDipilih' => $tahunDipilih,
+        'modul' => $modul
     ]);
 }
 public function storeDomain(Request $request)
 {
     $request->validate([
-        'nama_domain' => 'required',
+        'nama_domain' => 'required|string|max:255',
         'tahun'       => 'required|numeric',
-        'bobot'       => 'required|numeric'
+        'bobot'       => 'required|numeric|min:0|max:100',
+        'modul'       => 'required|in:spbe,pemdi'
     ]);
 
     try {
-        DB::beginTransaction();
+        return DB::transaction(function () use ($request) {
+            $urutanTerakhir = Domain::where('tahun', $request->tahun)
+                                    ->where('modul', $request->modul)
+                                    ->max('urutan') ?? 0;
 
-        $urutanTerakhir = Domain::where('tahun', $request->tahun)->max('urutan') ?? 0;
-        $domain = new Domain();
-        $domain->nama_domain = $request->nama_domain;
-        $domain->tahun       = $request->tahun;
-        $domain->urutan      = $urutanTerakhir + 1;
-        $domain->save();
+            $domain = Domain::create([
+                'nama_domain' => $request->nama_domain,
+                'tahun'       => $request->tahun,
+                'modul'       => $request->modul,
+                'urutan'      => $urutanTerakhir + 1,
+            ]);
 
+            // Menggunakan relasi jika sudah diset di model (lebih clean)
+            BobotDomain::create([
+                'id_domain' => $domain->id_domain, // Pastikan primaryKey diset di model
+                'tahun'     => $request->tahun,
+                'bobot'     => $request->bobot,
+            ]);
 
-        $bobot = new BobotDomain();
-        $bobot->id_domain = $domain->id_domain; 
-        $bobot->tahun     = $domain->tahun;
-        $bobot->bobot     = $request->bobot;
-        $bobot->save();
-
-        DB::commit();
-
-        return back()
-            ->with('success', 'Domain dan Bobot berhasil ditambahkan.')
-            ->with('open_domain', $domain->id_domain);
-
+            return back()
+                ->with('success', 'Domain ' . strtoupper($request->modul) . ' berhasil ditambahkan.')
+                ->with('open_domain', $domain->id_domain);
+        });
     } catch (\Exception $e) {
-        DB::rollBack();
         return back()->with('error', 'Gagal simpan: ' . $e->getMessage());
     }
 }
@@ -114,22 +128,26 @@ public function storeDomain(Request $request)
 public function updateDomain(Request $request, $id)
 {
     $request->validate([
-        'nama_domain' => 'required',
-        'bobot'       => 'required|numeric|min:0|max:100' 
+        'nama_domain' => 'required|string|max:255',
+        'bobot'       => 'required|numeric|min:0|max:100',
+        'modul'       => 'required|in:spbe,pemdi'
     ]);
 
-    $domain = Domain::findOrFail($id);
-    $domain->update(['nama_domain' => $request->nama_domain]);
+    try {
+        return DB::transaction(function () use ($request, $id) {
+            $domain = Domain::findOrFail($id);
+            $domain->update(['nama_domain' => $request->nama_domain]);
 
-    BobotDomain::updateOrCreate(
-        ['id_domain' => $id],
-        [
-            'bobot' => $request->bobot,
-            'tahun' => $domain->tahun
-        ]
-    );
+            BobotDomain::updateOrCreate(
+                ['id_domain' => $id, 'tahun' => $domain->tahun], // Pencarian lebih spesifik
+                ['bobot' => $request->bobot]
+            );
 
-    return back()->with('success', 'Domain & Bobot berhasil diperbarui.');
+            return back()->with('success', 'Domain & Bobot berhasil diperbarui.');
+        });
+    } catch (\Exception $e) {
+        return back()->with('error', 'Gagal update: ' . $e->getMessage());
+    }
 }
 
 public function deleteDomain($id)
@@ -479,26 +497,47 @@ public function deletePenjelasan($id)
 
         return back()->with('success', 'Bobot aspek berhasil diperbarui.');
     }
-    public function moveAspek(Request $request) {
-    $aspek = Aspek::find($request->id_aspek);
-    $aspek->id_domain = $request->id_domain;
-    $aspek->save();
-    return response()->json(['status' => 'success']);
+   public function moveAspek(Request $request) {
+    try {
+        $order = $request->order;
+        $id_domain = $request->id_domain;
+
+        if (!$order) return response()->json(['error' => 'Data urutan kosong'], 400);
+
+        DB::transaction(function () use ($order, $id_domain) {
+            foreach ($order as $index => $id) {
+                DB::table('aspek')
+                    ->where('id_aspek', $id)
+                    ->update([
+                        'id_domain' => $id_domain,
+                        'urutan' => $index + 1
+                    ]);
+            }
+        });
+
+        return response()->json(['status' => 'success']);
+    } catch (\Exception $e) {
+        return response()->json(['error' => $e->getMessage()], 500);
+    }
 }
 
-public function moveIndikator(Request $request)
-{
+public function moveIndikator(Request $request) {
     try {
-        $id_indikator = $request->id_indikator;
+        $order = $request->order;
         $id_aspek = $request->id_aspek;
 
-        if (!$id_indikator || !$id_aspek) {
-            return response()->json(['error' => 'Data tidak lengkap'], 400);
-        }
+        if (!$order) return response()->json(['error' => 'Data urutan kosong'], 400);
 
-        $indikator = Indikator::findOrFail($id_indikator);
-        $indikator->id_aspek = $id_aspek;
-        $indikator->save();
+        DB::transaction(function () use ($order, $id_aspek) {
+            foreach ($order as $index => $id) {
+                DB::table('indikator')
+                    ->where('id_indikator', $id)
+                    ->update([
+                        'id_aspek' => $id_aspek,
+                        'urutan' => $index + 1
+                    ]);
+            }
+        });
 
         return response()->json(['success' => true]);
     } catch (\Exception $e) {
@@ -533,81 +572,96 @@ public function moveDomain(Request $request)
 public function copyStructure(Request $request)
 {
     $tahunBaru = $request->tahun; 
-    $tahunLama = $tahunBaru - 1; 
+    $modul = $request->modul ?? 'spbe'; 
+    
+    // Cari tahun terakhir yang tersedia khusus untuk modul ini sebagai sumber salinan
+    $lastYearSource = Domain::where('modul', $modul)->max('tahun');
 
-    $exists = Domain::where('tahun', $tahunBaru)->exists();
-    if ($exists) {
-        return back()->with('error', 'Data tahun ' . $tahunBaru . ' sudah ada!');
+    if (!$lastYearSource) {
+        return back()->with('error', 'Tidak ada data sumber untuk modul ' . strtoupper($modul));
     }
 
-    $oldDomains = Domain::where('tahun', $tahunLama)
-        ->with('aspek.indikator.kriteria')
+    // 1. Validasi: Cek apakah data untuk tahun baru dan modul tersebut sudah ada
+    $exists = Domain::where('tahun', $tahunBaru)
+                    ->where('modul', $modul)
+                    ->exists();
+
+    if ($exists) {
+        return back()->with('error', 'Struktur tahun ' . $tahunBaru . ' untuk modul ' . strtoupper($modul) . ' sudah ada!');
+    }
+
+    // 2. Ambil data dari tahun sumber (lastYearSource)
+    $oldDomains = Domain::where('tahun', $lastYearSource)
+        ->where('modul', $modul)
+        ->with(['aspek.indikator.kriteria', 'aspek.indikator.penjelasan'])
         ->get();
 
-    foreach ($oldDomains as $oldDom) {
-        /** @var Domain $oldDom */
-        $newDom = $oldDom->replicate(); 
-        $newDom->tahun = $tahunBaru;
-        $newDom->save();
+    try {
+        DB::beginTransaction();
 
-         $oldBobotDom = DB::table('bobot_domain')->where('id_domain', $oldDom->id_domain)->first();
-        if ($oldBobotDom) {
-            DB::table('bobot_domain')->insert([
-                'id_domain' => $newDom->id_domain,
-                'tahun'     => $tahunBaru,
-                'bobot'     => $oldBobotDom->bobot
-            ]);
-        }
+        foreach ($oldDomains as $oldDom) {
+            $newDom = $oldDom->replicate(); 
+            $newDom->tahun = $tahunBaru;
+            $newDom->save();
 
-        foreach ($oldDom->aspek as $oldAsp) {
-             $newAsp = $oldAsp->replicate();
-            $newAsp->id_domain = $newDom->id_domain; 
-            $newAsp->tahun = $tahunBaru;
-            $newAsp->save();
-
-            $oldBobotAsp = DB::table('bobot_aspek')->where('id_aspek', $oldAsp->id_aspek)->first();
-            if ($oldBobotAsp) {
-                DB::table('bobot_aspek')->insert([
-                    'id_aspek' => $newAsp->id_aspek,
-                    'tahun'    => $tahunBaru,
-                    'bobot'    => $oldBobotAsp->bobot
+            // Salin Bobot Domain
+            $oldBobotDom = DB::table('bobot_domain')->where('id_domain', $oldDom->id_domain)->first();
+            if ($oldBobotDom) {
+                DB::table('bobot_domain')->insert([
+                    'id_domain' => $newDom->id_domain,
+                    'tahun'     => $tahunBaru,
+                    'bobot'     => $oldBobotDom->bobot
                 ]);
             }
 
-            foreach ($oldAsp->indikator as $oldInd) {
-                $newInd = $oldInd->replicate();
-                $newInd->id_aspek = $newAsp->id_aspek; 
-                $newInd->tahun = $tahunBaru;
-                $newInd->save();
+            foreach ($oldDom->aspek as $oldAsp) {
+                $newAsp = $oldAsp->replicate();
+                $newAsp->id_domain = $newDom->id_domain; 
+                $newAsp->tahun = $tahunBaru;
+                $newAsp->save();
 
-                $oldPenjelasan = DB::table('penjelasan_indikator') 
-                ->where('id_indikator', $oldInd->id_indikator)
-                    ->first();
-
-                if ($oldPenjelasan) {
-                    $dataPenjelasan = (array) $oldPenjelasan;
-                    
-                    unset($dataPenjelasan['id_penjelasan_penulisan']); 
-                    
-                    $dataPenjelasan['id_indikator'] = $newInd->id_indikator;
-                    
-                    if (array_key_exists('tahun', $dataPenjelasan)) {
-                        $dataPenjelasan['tahun'] = $tahunBaru;
-                    }
-
-                    DB::table('penjelasan_indikator')->insert($dataPenjelasan);
+                // Salin Bobot Aspek
+                $oldBobotAsp = DB::table('bobot_aspek')->where('id_aspek', $oldAsp->id_aspek)->first();
+                if ($oldBobotAsp) {
+                    DB::table('bobot_aspek')->insert([
+                        'id_aspek' => $newAsp->id_aspek,
+                        'tahun'    => $tahunBaru,
+                        'bobot'    => $oldBobotAsp->bobot
+                    ]);
                 }
 
-                foreach ($oldInd->kriteria as $oldKrit) {
-                    $newKrit = $oldKrit->replicate();
-                    $newKrit->id_indikator = $newInd->id_indikator; 
-                    $newKrit->tahun = $tahunBaru;
-                    $newKrit->save();
+                foreach ($oldAsp->indikator as $oldInd) {
+                    $newInd = $oldInd->replicate();
+                    $newInd->id_aspek = $newAsp->id_aspek; 
+                    $newInd->tahun = $tahunBaru;
+                    $newInd->save();
+
+                    // Salin Penjelasan Indikator (Lebih stabil menggunakan relasi)
+                    if ($oldInd->penjelasan) {
+                        $newPenjelasan = $oldInd->penjelasan->replicate();
+                        $newPenjelasan->id_indikator = $newInd->id_indikator;
+                        $newPenjelasan->tahun = $tahunBaru;
+                        $newPenjelasan->save();
+                    }
+
+                    // Salin Kriteria
+                    foreach ($oldInd->kriteria as $oldKrit) {
+                        $newKrit = $oldKrit->replicate();
+                        $newKrit->id_indikator = $newInd->id_indikator; 
+                        $newKrit->tahun = $tahunBaru;
+                        $newKrit->save();
+                    }
                 }
             }
         }
-    }
 
-    return back()->with('success', 'Berhasil menyalin master data, bobot, dan penjelasan ke tahun ' . $tahunBaru);
+        DB::commit();
+        return redirect()->route('admin.master', ['tahun' => $tahunBaru, 'modul' => $modul])
+                         ->with('success', 'Berhasil menyalin struktur ' . strtoupper($modul) . ' ke tahun ' . $tahunBaru);
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return back()->with('error', 'Gagal menyalin data: ' . $e->getMessage());
+    }
 }
 }

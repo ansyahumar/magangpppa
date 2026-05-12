@@ -42,23 +42,38 @@
 
 <div class="px-6 py-8 max-w-7xl mx-auto space-y-8 animate-in">
     <div class="flex flex-col md:flex-row md:items-center justify-between border-b border-gray-200 pb-6 gap-4">
-        <div>
-            <h2 class="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-                Dashboard Monitoring <span class="text-blue-700">SPBE</span>
-            </h2>
-            <p class="text-slate-500 font-medium mt-1">Laporan Capaian Indeks Sistem Pemerintahan Berbasis Elektronik</p>
+    <div>
+        <h2 class="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+            Dashboard Monitoring <span class="{{ request('modul') == 'pemdi' ? 'text-indigo-700' : 'text-blue-700' }}">{{ request('modul') == 'pemdi' ? 'PEMDI' : 'SPBE' }}</span>
+        </h2>
+        <p class="text-slate-500 font-medium mt-1">Analisis Capaian Indeks {{ request('modul') == 'pemdi' ? 'Pemerintah Digital' : 'Sistem Pemerintahan Berbasis Elektronik' }}</p>
+    </div>
+
+    <div class="flex flex-col sm:flex-row gap-4 items-center">
+        <!-- Switcher Modul -->
+        <div class="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-2xl border border-gray-200 dark:border-gray-700">
+            <a href="{{ route('p1.chart', ['modul' => 'spbe', 'tahun' => $tahunDipilih]) }}" 
+               class="px-6 py-2 text-xs font-bold rounded-xl transition-all {{ request('modul', 'spbe') == 'spbe' ? 'bg-white shadow-sm text-blue-700' : 'text-gray-500 hover:text-gray-700' }}">
+               SPBE
+            </a>
+            <a href="{{ route('p1.chart', ['modul' => 'pemdi', 'tahun' => $tahunDipilih]) }}" 
+               class="px-6 py-2 text-xs font-bold rounded-xl transition-all {{ request('modul') == 'pemdi' ? 'bg-white shadow-sm text-indigo-700' : 'text-gray-500 hover:text-gray-700' }}">
+               PEMDI
+            </a>
         </div>
-        
+
+        <!-- Dropdown Tahun -->
         <form id="formTahun" method="GET" action="{{ route('p1.chart') }}">
+            <input type="hidden" name="modul" value="{{ request('modul', 'spbe') }}">
             <select name="tahun" onchange="this.form.submit()" class="formal-select dark:bg-gray-800 dark:border-gray-700">
                 <option value="all" {{ (string)$tahunDipilih === 'all' ? 'selected' : '' }}>RINGKASAN MULTI-TAHUN</option>
                 @foreach($tahunList as $th)
-                    <option value="{{ $th }}" {{ (string)$tahunDipilih === (string)$th ? 'selected' : '' }}>LAPORAN TAHUN {{ $th }}</option>
+                    <option value="{{ $th }}" {{ (string)$tahunDipilih === (string)$th ? 'selected' : '' }}>TAHUN {{ $th }}</option>
                 @endforeach
             </select>
         </form>
     </div>
-
+</div>
     <div class="executive-card card-accent-blue p-8" onclick="openChartModal('Indeks SPBE', 'mixed')">
         <div class="flex items-center gap-3 mb-6">
             <div class="p-2 bg-blue-50 text-blue-700 rounded-lg"><i class="fa-solid fa-chart-line"></i></div>

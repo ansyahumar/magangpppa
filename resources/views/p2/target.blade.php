@@ -1,40 +1,41 @@
 @extends('layouts.p2')
-
+<title>@yield('title', 'Penilaian Target ' . ($modul == 'pemdi' ? 'PEMDI' : 'SPBE'))</title>
 @section('content')
 <div class="max-w-7xl mx-auto px-4 py-8">
-     <div class="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+    <div class="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div>
             <h2 class="text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight">
-                Form Penilaian SPBE 
-                @if(Auth::user()->role === 'p2') <span class="text-amber-600">(Target SPBE)</span> @endif
+                {{-- Judul Dashboard Dinamis --}}
+                Form Penilaian {{ $modul == 'pemdi' ? 'PEMDI' : 'SPBE' }} 
+                
+                @if(Auth::user()->role === 'p2') 
+                    <span class="{{ $modul == 'pemdi' ? 'text-emerald-600' : 'text-amber-600' }}">
+                        (Target {{ strtoupper($modul) }})
+                    </span> 
+                @endif
             </h2>
+            <p class="text-sm text-gray-500 mt-1">Mengelola indikator capaian untuk modul {{ strtoupper($modul) }} periode {{ $tahun }}.</p>
         </div>
+
         <form method="get" action="{{ route('p2.target') }}" class="bg-white dark:bg-gray-800 p-2 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
             <div class="flex items-center gap-3">
+                <select name="modul" class="form-select border-none focus:ring-0 text-sm font-bold bg-transparent text-blue-600 cursor-pointer" onchange="this.form.submit()">
+                    <option value="spbe" {{ $modul == 'spbe' ? 'selected' : '' }}>Modul SPBE</option>
+                    <option value="pemdi" {{ $modul == 'pemdi' ? 'selected' : '' }}>Modul PEMDI</option>
+                </select>
+                
+                <div class="h-6 w-[1px] bg-gray-200 dark:bg-gray-600"></div>
+
                 <label class="text-sm font-medium text-gray-600 dark:text-gray-300 ml-2">Tahun</label>
                 <select name="tahun" id="global-select-tahun" class="form-select border-none focus:ring-0 text-sm font-semibold bg-transparent text-gray-900 dark:text-white cursor-pointer" onchange="this.form.submit()">
                     @foreach($availableYears as $year)
-                        @php
-                            $checkFinal = in_array($year, $finalizedYears ?? []); 
-                            $statusLabel = $checkFinal ? 'Sudah Dinilai' : 'Belum Dinilai';
-                        @endphp
-                        <option value="{{ $year }}" {{ ($tahun == $year) ? 'selected' : '' }}>
-                            {{ $year }} ({{ $statusLabel }})
-                        </option>
+                        <option value="{{ $year }}" {{ ($tahun == $year) ? 'selected' : '' }}>{{ $year }}</option>
                     @endforeach
                 </select>
-                <div class="h-6 w-[1px] bg-gray-200 dark:bg-gray-600"></div>
-                <div class="px-3">
-                    @php $currentYearIsFinal = in_array($tahun, $finalizedYears ?? []); @endphp
-                    @if ($currentYearIsFinal)
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 border border-red-200 dark:border-red-800/50">Terkunci</span>
-                    @else
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 border border-green-200 dark:border-green-800/50">Terbuka</span>
-                    @endif
-                </div>
             </div>
         </form>
     </div>
+
 
      @php $globalIndikatorCount = 1; @endphp
 
@@ -115,6 +116,7 @@
           data-total="{{ $totalIndikator }}" 
           data-terisi="{{ $terisiIndikator }}">
         @csrf
+        <input type="hidden" name="modul" value="{{ $modul }}">
         <input type="hidden" name="tahun" value="{{ $tahun }}">
         <button type="button" 
                 onclick="confirmFinalisasi()"
@@ -161,21 +163,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const saveBtn = document.getElementById('save-kriteria');
     const selectTahun = document.getElementById('global-select-tahun');
     const userRole = "{{ Auth::user()->role }}";
+    const currentModul = "{{ $modul ?? 'spbe' }}";
 
     let buktiStore = {}; 
     let activeIndikatorId = null;
 
     async function showModal(indikatorId, nomorUrut) {
         activeIndikatorId = indikatorId;
-        const tahunAktifVal = selectTahun.value || new Date().getFullYear();
-        
+// Di dalam async function showModal(indikatorId, nomorUrut)
+const tahunAktifVal = selectTahun.value || new Date().getFullYear();
+const selectModulElement = document.querySelector('select[name="modul"]');
+const modulAktif = document.querySelector('select[name="modul"]').value; // Ambil nilai modul        
         modal.classList.remove('hidden');
         content.innerHTML = '<div class="flex justify-center py-12"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>';
         saveBtn.classList.add('hidden');
         
         try {
-            const res = await fetch(`/indikator/${indikatorId}/detail?tahun=${tahunAktifVal}`);
-            const data = await res.json();
+    // Tambahkan &modul=${modulAktif}
+    const res = await fetch(`/indikator/${indikatorId}/detail?tahun=${tahunAktifVal}&modul=${modulAktif}`);
+    const data = await res.json();
 
             if (!data.kriteria || data.kriteria.length === 0) {
                 content.innerHTML = '<div class="p-8 text-center text-gray-500 font-semibold">Data kriteria tidak ditemukan.</div>';
@@ -390,7 +396,8 @@ saveBtn.onclick = async () => {
         Swal.fire('Peringatan', `Silakan pilih salah satu Level untuk Nilai Target terlebih dahulu!`, 'warning');
         return;
     }
-
+const selectModul = document.querySelector('select[name="modul"]');
+    const modulUntukDikirim = selectModul ? selectModul.value : currentModul;
     const result = await Swal.fire({
         title: 'Simpan Penilaian?',
         text: "Target nilai akan diperbarui ke dalam sistem.",
@@ -402,8 +409,10 @@ saveBtn.onclick = async () => {
     if (result.isConfirmed) {
         Swal.fire({ title: 'Menyimpan...', didOpen: () => Swal.showLoading(), allowOutsideClick: false });
 
-        const fd = new FormData();       
-        const kriteria = [{
+// Di dalam saveBtn.onclick
+const fd = new FormData();
+const modulAktif = document.querySelector('select[name="modul"]').value;       
+ const kriteria = [{
             kriteria_id: checked.dataset.kriteria,
             [targetField]: checked.value
         }];
@@ -419,9 +428,9 @@ saveBtn.onclick = async () => {
             };
         });
 
-        fd.append('tahun', selectTahun.value);
-        fd.append('id_indikator', activeIndikatorId);
-        fd.append('kriteria', JSON.stringify(kriteria));
+fd.append('modul', modulUntukDikirim);
+fd.append('tahun', selectTahun.value);
+fd.append('id_indikator', activeIndikatorId);        fd.append('kriteria', JSON.stringify(kriteria));
         fd.append('catatan', JSON.stringify(mapCatatan));
         fd.append('role_pengirim', userRole);
         fd.append('is_edit_mode', '1');

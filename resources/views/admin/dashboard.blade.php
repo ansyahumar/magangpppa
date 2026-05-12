@@ -49,31 +49,33 @@
     <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-6 pb-2 border-b border-gray-100 dark:border-gray-800 animate-fade-in-up">
         <div>
             <h2 class="text-4xl font-black text-gray-900 dark:text-white tracking-tight">
-                Dashboard <span class="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-500">SPBE</span>
-            </h2>
+    Dashboard <span class="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-500 uppercase">{{ $modul }}</span>
+</h2>
             <p class="mt-2 text-gray-500 dark:text-gray-400 font-medium">Monitoring capaian indeks sistem pemerintahan secara real-time.</p>
         </div>
 
-        <form id="formTahun" method="GET" action="{{ route('admin.dashboard') }}" class="relative">
-            <label class="block text-[10px] font-bold uppercase text-gray-400 mb-1.5 ml-1">Periode Laporan</label>
-            <div class="relative group">
-                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none transition-transform group-hover:scale-110">
-                    <svg class="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                </div>
-                <select name="tahun" onchange="this.form.submit()" 
-                        class="block w-full md:w-64 pl-12 pr-10 py-3.5 text-sm font-bold border-none ring-1 ring-gray-200 dark:ring-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 rounded-2xl shadow-sm focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer appearance-none">
-                    <option value="all" {{ (string)$tahunDipilih === 'all' ? 'selected' : '' }}>Semua Tahun</option>
-                    @foreach($tahunList as $tahun)
-                        <option value="{{ $tahun }}" {{ (string)$tahunDipilih === (string)$tahun ? 'selected' : '' }}>Tahun Data {{ $tahun }}</option>
-                    @endforeach
-                </select>
-                <div class="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
-                    <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7" /></svg>
-                </div>
-            </div>
-        </form>
+       <form id="formTahun" method="GET" action="{{ route('admin.dashboard') }}" class="relative">
+    <input type="hidden" name="modul" value="{{ $modul }}">
+
+    <label class="block text-[10px] font-bold uppercase text-gray-400 mb-1.5 ml-1">Periode Laporan</label>
+    <div class="relative group">
+        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none transition-transform group-hover:scale-110">
+            <svg class="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+        </div>
+        <select name="tahun" onchange="this.form.submit()" 
+                class="block w-full md:w-64 pl-12 pr-10 py-3.5 text-sm font-bold border-none ring-1 ring-gray-200 dark:ring-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 rounded-2xl shadow-sm focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer appearance-none">
+            <option value="all" {{ (string)$tahunDipilih === 'all' ? 'selected' : '' }}>Semua Tahun</option>
+            @foreach($tahunList as $tahun)
+                <option value="{{ $tahun }}" {{ (string)$tahunDipilih === (string)$tahun ? 'selected' : '' }}>Tahun Data {{ $tahun }}</option>
+            @endforeach
+        </select>
+        <div class="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+            <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7" /></svg>
+        </div>
+    </div>
+</form>
     </div>
 
     <div class="glass-card rounded-3xl p-8 chart-card animate-scale-in delay-1">
@@ -160,7 +162,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const rawLineDatasets = @json($lineChartDatasets ?? []);
 
     chartConfigs.mixed = {
-        title: 'Nilai SPBE Keseluruhan per Tahun',
+        title: `Nilai ${'{{ strtoupper($modul) }}'} Keseluruhan per Tahun`,
         indicator: 'bg-blue-600',
         type: 'bar',
         data: {
@@ -174,7 +176,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     chartConfigs.line = {
-        title: 'Nilai Domain SPBE',
+       title: `Nilai Domain ${'{{ strtoupper($modul) }}'}`,
         indicator: 'bg-emerald-500',
         type: isRekap ? 'line' : 'bar',
         data: {
@@ -197,7 +199,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     chartConfigs.bar = {
-        title: 'Nilai Aspek SPBE',
+        title: `Nilai Aspek ${'{{ strtoupper($modul) }}'}`,
         indicator: 'bg-amber-500',
         type: 'bar',
         data: {

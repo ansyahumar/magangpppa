@@ -84,35 +84,42 @@
     @endforeach
 
     <div class="flex flex-col sm:flex-row justify-end items-center gap-4 mt-10 pb-12 border-t pt-8">
-        @php 
-            $isVerified = DB::table('penilaian_kriteria')
-                        ->where('tahun', $tahun)
-                        ->where('status_target', 'verified')
+    @php 
+        // Melakukan join dari penilaian_kriteria ke domain untuk mengecek kolom 'modul'
+        $isVerified = DB::table('penilaian_kriteria')
+                        ->join('indikator', 'penilaian_kriteria.id_indikator', '=', 'indikator.id_indikator')
+                        ->join('aspek', 'indikator.id_aspek', '=', 'aspek.id_aspek')
+                        ->join('domain', 'aspek.id_domain', '=', 'domain.id_domain')
+                        ->where('domain.tahun', $tahun)
+                        ->where('domain.modul', $modul) // Mengecek modul dari tabel domain
+                        ->where('penilaian_kriteria.status_target', 'verified')
                         ->exists();
-        @endphp
+    @endphp
 
-        @if(!$isVerified)
-            <button type="button" onclick="confirmAction('reject')" 
-                    class="px-8 py-3 font-bold rounded-2xl text-red-600 border-2 border-red-600 hover:bg-red-50 transition-all active:scale-95 shadow-sm">
-                Kembalikan target
-            </button>
+    @if(!$isVerified)
+        <button type="button" onclick="confirmAction('reject')" 
+                class="px-8 py-3 font-bold rounded-2xl text-red-600 border-2 border-red-600 hover:bg-red-50 transition-all active:scale-95 shadow-sm">
+            Kembalikan target
+        </button>
 
-            <button type="button" onclick="confirmAction('verify')"
-                    class="inline-flex items-center px-10 py-3 font-bold rounded-2xl shadow-xl transition-all bg-indigo-600 hover:bg-indigo-700 hover:-translate-y-1 active:scale-95 text-white">
-                <i class="fa-solid fa-cloud-arrow-up mr-2"></i> Setujui
-            </button>
-        @else
-            <div class="flex items-center gap-4 px-8 py-4 bg-emerald-50 text-emerald-700 rounded-3xl border border-emerald-200 shadow-sm">
-                <div class="w-10 h-10 bg-emerald-500 text-white rounded-full flex items-center justify-center shadow-md">
-                    <i class="fa-solid fa-check text-lg"></i>
-                </div>
-                <div>
-                    <p class="text-sm font-black uppercase leading-none mb-1">Target Tahun {{ $tahun }} Terverifikasi</p>
-                    <p class="text-xs opacity-75 leading-none">Data sudah dipublikasikan ke seluruh form penilaian.</p>
-                </div>
+        <button type="button" onclick="confirmAction('verify')"
+                class="inline-flex items-center px-10 py-3 font-bold rounded-2xl shadow-xl transition-all bg-indigo-600 hover:bg-indigo-700 hover:-translate-y-1 active:scale-95 text-white">
+            <i class="fa-solid fa-cloud-arrow-up mr-2"></i> Setujui
+        </button>
+    @else
+        <div class="flex items-center gap-4 px-8 py-4 bg-emerald-50 text-emerald-700 rounded-3xl border border-emerald-200 shadow-sm">
+            <div class="w-10 h-10 bg-emerald-500 text-white rounded-full flex items-center justify-center shadow-md">
+                <i class="fa-solid fa-check text-lg"></i>
             </div>
-        @endif
-    </div>
+            <div>
+                <p class="text-sm font-black uppercase leading-none mb-1">
+                    Target {{ strtoupper($modul) }} Tahun {{ $tahun }} Terverifikasi
+                </p>
+                <p class="text-xs opacity-75 leading-none">Data modul {{ $modul }} sudah dikunci dan dipublikasikan.</p>
+            </div>
+        </div>
+    @endif
+</div>
 </div>
 
 <div id="modal-kriteria" class="fixed inset-0 hidden z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
@@ -214,10 +221,14 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function confirmAction(action) {
+    // 1. Definisikan variabel modul dan tahun dari PHP ke JS
+    const modulAktif = "{{ $modul }}"; 
+    const tahunAktif = "{{ $tahun }}";
+
     const title = action === 'verify' ? 'Setujui & Publish?' : 'Kembalikan ke pengisian target ?';
     const text = action === 'verify' 
-        ? "Target akan dipublikasikan secara nasional." 
-        : "Data akan dikembalikan dan target dapat edit.";
+        ? `Target ${modulAktif.toUpperCase()} akan dipublikasikan secara nasional.` 
+        : `Data ${modulAktif.toUpperCase()} akan dikembalikan dan target dapat edit.`;
     
     const result = await Swal.fire({
         title: title,
@@ -240,8 +251,9 @@ async function confirmAction(action) {
                     "X-CSRF-TOKEN": "{{ csrf_token() }}"
                 },
                 body: JSON.stringify({
-                    tahun: "{{ $tahun }}",
-                    action: action
+                    tahun: tahunAktif,
+                    action: action,
+                    modul: modulAktif // <--- TAMBAHKAN BARIS INI
                 })
             });
 
