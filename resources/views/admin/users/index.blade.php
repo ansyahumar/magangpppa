@@ -156,7 +156,6 @@
                     <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Email</th>
                     <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Status</th>
                     <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Unit Kerja</th>
-                    <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">No ID Indikator</th>
                     <th class="px-6 py-4 text-center text-xs font-bold uppercase tracking-wider">Aksi</th>
                 </tr>
             </thead>
@@ -202,8 +201,6 @@
                     </td>
                     <!-- Unit Kerja -->
                     <td class="px-6 py-4 text-sm">{{ $user->unit ?? '-' }}</td>
-                    <!-- No ID Indikator -->
-                    <td class="px-6 py-4 text-sm font-black text-blue-600">{{ $user->no_id ?? '-' }}</td>
                     <!-- Aksi -->
                     <td class="px-6 py-4 whitespace-nowrap text-center">
                         <div class="flex justify-center gap-2">
