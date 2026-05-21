@@ -3,322 +3,337 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-   @include('layouts.fav')
-   <title>KemenPPPA - Pemberdayaan & Perlindungan</title>
+    @include('layouts.fav')
+    <title>Sistem Penilaian Mandiri - KemenPPPA</title>
 
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <!-- Fonts, Bootstrap 5, & Vendor Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css" rel="stylesheet">
 
     <style>
         :root {
-            --primary-color: #ff6f61;
-            --secondary-color: #4e54c8;
-            --dark-bg: #0f172a;
-            --glass-bg: rgba(255, 255, 255, 0.8);
+            --brand-primary: #ff6f61;
+            --brand-secondary: #4e54c8;
+            --bg-gradient: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            --card-bg: rgba(255, 255, 255, 0.75);
+            --card-border: rgba(15, 23, 42, 0.08);
+            --text-main: #0f172a;
+            --text-muted: #475569;
+            --badge-bg: rgba(15, 23, 42, 0.04);
+            --bento-hover-bg: rgba(255, 255, 255, 0.9);
+            --footer-border: rgba(15, 23, 42, 0.08);
+        }
+
+        body.dark {
+            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #020617 100%);
+            --card-bg: rgba(30, 41, 59, 0.45);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --badge-bg: rgba(255, 255, 255, 0.06);
+            --bento-hover-bg: rgba(255, 255, 255, 0.08);
+            --footer-border: rgba(255, 255, 255, 0.08);
         }
 
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
-            background-color: #f8fafc;
-            color: #334155;
-            transition: all 0.3s ease;
+            background: var(--bg-gradient);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
             overflow-x: hidden;
-        }
-
-        body.dark {
-            background-color: var(--dark-bg);
-            color: #f1f5f9;
-        }
-
-       
-        .navbar {
-            backdrop-filter: blur(10px);
-            background-color: rgba(255, 255, 255, 0.7);
-            border-bottom: 1px solid rgba(255,255,255,0.2);
-            padding: 1rem 0;
-            transition: 0.3s;
-        }
-
-        body.dark .navbar {
-            background-color: rgba(15, 23, 42, 0.8);
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-
-        .navbar-brand img {
-            transition: transform 0.3s ease;
-        }
-        .navbar-brand:hover img {
-            transform: rotate(-5deg) scale(1.1);
-        }
-
-        .nav-link {
-            font-weight: 600;
-            color: #1e293b !important;
-            margin: 0 10px;
             position: relative;
+            transition: background 0.4s ease, color 0.4s ease;
         }
 
-        body.dark .nav-link { color: #f1f5f9 !important; }
+        /* Animated Ambient Mesh Background Blobs */
+        .ambient-glow {
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(255,111,97,0.12) 0%, transparent 70%);
+            top: -150px;
+            right: -150px;
+            z-index: -1;
+            animation: floatGlow 10s ease-in-out infinite alternate;
+        }
+        .ambient-glow-2 {
+            position: absolute;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(78,84,200,0.1) 0%, transparent 70%);
+            bottom: -100px;
+            left: -150px;
+            z-index: -1;
+            animation: floatGlow 12s ease-in-out infinite alternate-reverse;
+        }
+        body.dark .ambient-glow { background: radial-gradient(circle, rgba(255,111,97,0.18) 0%, transparent 70%); }
+        body.dark .ambient-glow-2 { background: radial-gradient(circle, rgba(78,84,200,0.15) 0%, transparent 70%); }
 
-        .nav-link::after {
+        @keyframes floatGlow {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(40px, 30px) scale(1.1); }
+        }
+
+        /* Top Bar / Header */
+        .premium-header {
+            padding: 30px 0;
+            background: transparent;
+        }
+
+        /* Master Glass Card Container */
+        .master-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(24px) saturate(180%);
+            -webkit-backdrop-filter: blur(24px) saturate(180%);
+            border: 1px solid var(--card-border);
+            border-radius: 32px;
+            padding: 60px 40px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.03);
+            transition: background 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease;
+        }
+        body.dark .master-card {
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+        }
+
+        /* System Pill Badge */
+        .sys-badge {
+            background: var(--badge-bg);
+            border: 1px solid var(--card-border);
+            color: var(--text-main);
+            font-weight: 700;
+            font-size: 0.75rem;
+            letter-spacing: 1px;
+            padding: 8px 18px;
+            border-radius: 50px;
+            text-transform: uppercase;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: background 0.4s ease, border-color 0.4s ease, color 0.4s ease;
+        }
+
+        /* Typography */
+        .hero-title {
+            color: var(--text-main);
+            font-size: clamp(2.2rem, 5vw, 3.5rem);
+            font-weight: 800;
+            letter-spacing: -1.5px;
+            line-height: 1.2;
+            transition: color 0.4s ease;
+        }
+        .hero-title span {
+            background: linear-gradient(135deg, var(--brand-primary), #ff8a7f);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero-subtitle {
+            color: var(--text-muted);
+            font-size: 1.15rem;
+            line-height: 1.6;
+            max-width: 620px;
+            transition: color 0.4s ease;
+        }
+
+        /* Premium Floating Action Button */
+        .btn-premium-login {
+            background: linear-gradient(135deg, var(--brand-primary) 0%, #f45849 100%);
+            color: #ffffff !important;
+            font-weight: 700;
+            font-size: 1rem;
+            padding: 18px 44px;
+            border-radius: 100px;
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 10px 30px rgba(255, 111, 97, 0.35);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            text-decoration: none;
+            position: relative;
+            overflow: hidden;
+        }
+        .btn-premium-login::before {
             content: '';
             position: absolute;
-            width: 0;
-            height: 2px;
-            bottom: 0;
-            left: 0;
-            background-color: var(--primary-color);
-            transition: 0.3s;
+            top: 0; left: -100%; width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: all 0.6s;
+        }
+        .btn-premium-login:hover {
+            transform: translateY(-4px) scale(1.02);
+            box-shadow: 0 15px 35px rgba(255, 111, 97, 0.5);
+        }
+        .btn-premium-login:hover::before {
+            left: 100%;
         }
 
-        .nav-link:hover::after { width: 100%; }
-
-        
-        .hero-section {
-            min-height: 100vh;
-            background: linear-gradient(rgba(15, 23, 42, 0.6), rgba(15, 23, 42, 0.6)), 
-                       url('{{ asset('images/hero-bg.png') }}') center/cover no-repeat fixed;
+        /* Bento Minimalistic Indicators */
+        .bento-badge {
+            background: var(--badge-bg);
+            border: 1px solid var(--card-border);
+            color: var(--text-main);
+            padding: 16px 28px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
             display: flex;
             align-items: center;
-            justify-content: center;
-            text-align: center;
-            color: white;
-            padding-top: 80px;
+            gap: 12px;
+            transition: all 0.3s ease, color 0.4s ease, background 0.4s ease;
+        }
+        .bento-badge i {
+            font-size: 1.2rem;
+            transition: transform 0.3s ease;
+        }
+        .bento-badge:hover {
+            background: var(--bento-hover-bg);
+            transform: translateY(-2px);
+        }
+        .bento-badge:hover i {
+            transform: scale(1.2);
         }
 
-        .hero-section h1 {
-            font-size: clamp(2.5rem, 5vw, 4rem);
-            font-weight: 800;
-            letter-spacing: -1px;
-            line-height: 1.1;
+        /* Border Divider Fix for Dark Mode */
+        .bento-divider {
+            border-top: 1px solid var(--footer-border);
+            transition: border-color 0.4s ease;
         }
 
-       
-        .service-card {
-            background: #ffffff;
-            border: none;
-            border-radius: 24px;
-            padding: 40px 30px;
-            height: 100%;
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
-            border: 1px solid rgba(0,0,0,0.05);
-        }
-
-        body.dark .service-card {
-            background: #1e293b;
-            border: 1px solid rgba(255,255,255,0.05);
-        }
-
-        .service-card:hover {
-            transform: translateY(-15px);
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-            background: linear-gradient(145deg, #ffffff, #f0f0f0);
-        }
-
-        body.dark .service-card:hover {
-            background: linear-gradient(145deg, #1e293b, #334155);
-        }
-
-        .icon-box {
-            width: 70px;
-            height: 70px;
-            background: rgba(255, 111, 97, 0.1);
-            border-radius: 18px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 20px;
-            font-size: 2rem;
-            color: var(--primary-color);
-        }
-
-      
-        .cta-button {
-            background: var(--primary-color);
-            border: none;
-            padding: 16px 40px;
+        /* Theme Toggle Button Customized */
+        .theme-control-btn {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            color: var(--text-main);
+            width: 45px;
+            height: 45px;
             border-radius: 50px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            transition: 0.4s;
-            box-shadow: 0 10px 20px rgba(255, 111, 97, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+            transition: all 0.3s ease;
         }
-
-        .cta-button:hover {
-            transform: scale(1.05) translateY(-3px);
-            box-shadow: 0 15px 30px rgba(255, 111, 97, 0.4);
-            color: white;
+        .theme-control-btn:hover {
+            transform: rotate(15deg);
+            background: var(--text-main);
+            color: var(--card-bg);
         }
-
-     
-        ::-webkit-scrollbar { width: 10px; }
-        ::-webkit-scrollbar-track { background: #f1f1f1; }
-        ::-webkit-scrollbar-thumb { background: var(--primary-color); border-radius: 5px; }
-
-        footer {
-            background: #0f172a;
-            padding: 60px 0 30px;
-            color: #94a3b8;
+        
+        .header-brand-title {
+            color: var(--text-main);
+            transition: color 0.4s ease;
+        }
+        .header-brand-sub {
+            color: var(--text-muted);
+            transition: color 0.4s ease;
         }
     </style>
 </head>
-
 <body>
 
-<nav class="navbar navbar-expand-lg fixed-top shadow-sm">
-    <div class="container">
-        <a class="navbar-brand d-flex align-items-center gap-3" href="#">
-            <img src="{{ asset('images/logo.png') }}" alt="Logo" height="45">
-            <span class="fw-bold fs-4 tracking-tight">KemenPPPA</span>
-        </a>
+<!-- Ambient Graphics Background -->
+<div class="ambient-glow"></div>
+<div class="ambient-glow-2"></div>
 
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-
-        <div class="collapse navbar-collapse justify-content-end" id="navMenu">
-            <div class="navbar-nav align-items-center">
-                <a class="nav-link px-3" href="#about">Tentang</a>
-                <a class="nav-link px-3" href="#services">Layanan</a>
-                <a class="nav-link px-3" href="#contact">Kontak</a>
-                
-                <button class="ms-lg-3 theme-toggle btn btn-outline-secondary rounded-circle" onclick="toggleTheme()" id="themeIcon">
-                    <i class="bi bi-moon-stars-fill"></i>
-                </button>
+<!-- Header / Top Bar Minimalis Elegan -->
+<header class="premium-header">
+    <div class="container d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center gap-3" data-aos="fade-down" data-aos-duration="800">
+            <img src="{{ asset('images/logo.png') }}" alt="Logo KemenPPPA" height="40">
+            <div class="d-flex flex-column text-start">
+                <span class="fw-bold fs-6 lh-1 tracking-tight header-brand-title">KemenPPPA</span>
+                <small class="fw-semibold header-brand-sub" style="font-size: 0.65rem; letter-spacing: 0.5px; opacity: 0.8;">REPUBLIK INDONESIA</small>
             </div>
+        </div>
+        
+        <div data-aos="fade-down" data-aos-duration="800" data-aos-delay="100">
+            <button class="btn theme-control-btn" onclick="toggleTheme()" id="themeBtn" aria-label="Ubah Tema">
+                <i class="bi bi-moon-stars-fill fs-5"></i>
+            </button>
         </div>
     </div>
-</nav>
+</header>
 
-<section class="hero-section">
-    <div class="container" data-aos="zoom-out" data-aos-duration="1200">
-        <div class="row justify-content-center">
-            <div class="col-lg-9">
-                <span class="badge rounded-pill bg-warning text-dark mb-3 px-3 py-2 fw-bold">#IndonesiaEmas2045</span>
-                <h1>Perempuan Berdaya Anak Terlindungi <span style="color: var(--primary-color);">Indonesia Maju</span></h1>
-                <p></p>
-                <div class="d-flex flex-column flex-md-row justify-content-center gap-3">
-                    <button class="btn cta-button text-white" onclick="window.location.href='{{ route('login') }}'">
-                        Mulai Sekarang <i class="bi bi-arrow-right ms-2"></i>
-                    </button>
+<!-- Main Gate / Dashboard Center Content -->
+<main class="my-auto py-4">
+    <div class="container d-flex justify-content-center">
+        <div class="master-card text-center w-100 max-w-4xl" data-aos="zoom-in-up" data-aos-duration="900" style="max-width: 860px;">
+            
+            <!-- System Tag Badge -->
+            <div class="mb-4">
+                <span class="sys-badge">
+                    <span class="spinner-grow spinner-grow-sm text-danger" role="status" style="animation-duration: 1.5s;"></span>
+                    Integrated Portal Gateway
+                </span>
+            </div>
+
+            <!-- Main Heading Text -->
+            <h1 class="hero-title mb-3">
+                Sistem Informasi Penilaian Mandiri <br>
+                & Evaluasi Kinerja <span>Sektoral</span>
+            </h1>
+
+            <!-- Descriptive Text -->
+            <p class="hero-subtitle mx-auto mb-5">
+                Satu pintu akses aman bagi internal kementerian untuk pengumpulan data instrumen evaluasi berkala, akuntabilitas capaian indikator, serta monitoring tim monev secara terpusat.
+            </p>
+
+            <!-- Main Premium Call-to-Action Button -->
+            <div class="mb-5">
+                <a href="{{ route('login') }}" class="btn-premium-login">
+                    Masuk ke Sistem Aplikasi <i class="bi bi-chevron-right fs-6"></i>
+                </a>
+            </div>
+
+            <!-- Bento-Inspired Feature Badges Area -->
+            <div class="d-flex flex-wrap justify-content-center gap-3 bento-divider pt-4">
+                <div class="bento-badge">
+                    <i class="bi bi-cpu-fill text-primary"></i>
+                    <span>Instrumen SPBE</span>
+                </div>
+                <div class="bento-badge">
+                    <i class="bi bi-bar-chart-line-fill text-info"></i>
+                    <span>Matriks PEMDI</span>
                 </div>
             </div>
+
         </div>
     </div>
-</section>
+</main>
 
-<section id="about" class="py-5 my-5">
-    <div class="container">
-        <div class="row align-items-center g-5">
-            <div class="col-lg-6" data-aos="fade-right">
-                <img src="https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&q=80" class="img-fluid rounded-5 shadow-lg" alt="About Us">
-            </div>
-            <div class="col-lg-6" data-aos="fade-left">
-                <h6 class="text-uppercase text-primary fw-bold mb-3">Tentang Kami</h6>
-                <h2 class="display-5 fw-bold mb-4">Misi Kami Melindungi & Memberdayakan</h2>
-                <p class="text-muted fs-5">Kami adalah garda terdepan dalam memastikan setiap perempuan memiliki kesempatan yang sama dan setiap anak mendapatkan hak perlindungan yang layak di seluruh pelosok negeri.</p>
-                <ul class="list-unstyled mt-4">
-                    <li class="mb-3 d-flex align-items-center"><i class="bi bi-check-circle-fill text-success me-3 fs-4"></i> Advokasi Kebijakan Publik</li>
-                    <li class="mb-3 d-flex align-items-center"><i class="bi bi-check-circle-fill text-success me-3 fs-4"></i> Pendampingan Hukum & Sosial</li>
-                    <li class="d-flex align-items-center"><i class="bi bi-check-circle-fill text-success me-3 fs-4"></i> Edukasi Berkelanjutan</li>
-                </ul>
-            </div>
-        </div>
-    </div>
-</section>
-
-<section id="services" class="py-5" style="background: rgba(0,0,0,0.02);">
-    <div class="container">
-        <div class="text-center mb-5" data-aos="fade-up">
-            <h2 class="display-6 fw-bold">Layanan Prioritas</h2>
-            <div class="mx-auto mt-3" style="width: 60px; height: 4px; background: var(--primary-color); border-radius: 2px;"></div>
-        </div>
-
-        <div class="row g-4">
-            <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
-                <div class="service-card text-center">
-                    <div class="icon-box">
-                        <i class="bi bi-book"></i>
-                    </div>
-                    <h4 class="fw-bold mb-3">Pendidikan Wanita</h4>
-                    <p class="text-muted">Program literasi digital dan finansial untuk kemandirian ekonomi perempuan Indonesia.</p>
-                </div>
-            </div>
-            <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
-                <div class="service-card text-center border-primary" style="border-width: 2px !important;">
-                    <div class="icon-box" style="background: var(--primary-color); color: white;">
-                        <i class="bi bi-shield-check"></i>
-                    </div>
-                    <h4 class="fw-bold mb-3">Perlindungan Anak</h4>
-                    <p class="text-muted">Layanan pengaduan 24 jam dan rumah aman bagi anak korban kekerasan dan eksploitasi.</p>
-                </div>
-            </div>
-            <div class="col-md-4" data-aos="fade-up" data-aos-delay="300">
-                <div class="service-card text-center">
-                    <div class="icon-box">
-                        <i class="bi bi-people"></i>
-                    </div>
-                    <h4 class="fw-bold mb-3">Kesetaraan Gender</h4>
-                    <p class="text-muted">Mendorong keterwakilan perempuan di sektor strategis dan pengambilan keputusan.</p>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
-
-<footer id="contact">
-    <div class="container text-center">
-        <div class="mb-4">
-            <a href="#" class="text-white fs-2 mx-3"><i class="bi bi-facebook"></i></a>
-            <a href="#" class="text-white fs-2 mx-3"><i class="bi bi-instagram"></i></a>
-            <a href="#" class="text-white fs-2 mx-3"><i class="bi bi-twitter-x"></i></a>
-        </div>
-        <p class="mb-0">&copy; 2026 Kementerian Pemberdayaan Perempuan & Perlindungan Anak.</p>
-        <small class="opacity-50">Dibuat dengan dedikasi untuk Indonesia.</small>
+<!-- Footer Layout -->
+<footer class="py-4">
+    <div class="container text-center small" style="opacity: 0.6;">
+        <p class="mb-0">&copy; 2026 Kementerian Pemberdayaan Perempuan dan Perlindungan Anak RI.</p>
     </div>
 </footer>
 
+<!-- Engineering Scripts Engine Core -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
 
 <script>
-    AOS.init({ 
-        duration: 1000, 
-        once: true,
-        offset: 100
-    });
-
+    AOS.init({ once: true });
     const body = document.body;
-    const themeIcon = document.getElementById('themeIcon');
-    const savedTheme = localStorage.getItem('theme');
-
-    function setIcon() {
-        themeIcon.innerHTML = body.classList.contains('dark')
-            ? '<i class="bi bi-sun-fill text-warning"></i>'
-            : '<i class="bi bi-moon-stars-fill"></i>';
-    }
-
-    if (savedTheme === 'dark') body.classList.add('dark');
-    setIcon();
-
+    const themeBtn = document.querySelector('#themeBtn i');
+    
     function toggleTheme() {
         body.classList.toggle('dark');
-        localStorage.setItem('theme', body.classList.contains('dark') ? 'dark' : 'light');
-        setIcon();
+        const isDark = body.classList.contains('dark');
+        localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        themeBtn.className = isDark ? 'bi bi-sun-fill text-warning fs-5' : 'bi bi-moon-stars-fill fs-5';
     }
-
-    window.addEventListener('scroll', () => {
-        const nav = document.querySelector('.navbar');
-        if (window.scrollY > 50) {
-            nav.classList.add('py-2', 'shadow');
-        } else {
-            nav.classList.remove('py-2', 'shadow');
-        }
-    });
+    
+    if (localStorage.getItem('theme') === 'dark') {
+        body.classList.add('dark');
+        themeBtn.className = 'bi bi-sun-fill text-warning fs-5';
+    }
 </script>
 
 </body>

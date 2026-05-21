@@ -17,8 +17,6 @@ public function index(Request $request)
 {
     $tahunDipilih = $request->input('tahun', 'all');
     $modul = $request->input('modul', 'spbe');
-    
-    // 1. Ambil list tahun yang relevan dengan modul
     $tahunList = DB::table('penilaian_kriteria')
         ->where('status', 'final')
         ->where('modul', $modul)
@@ -30,7 +28,6 @@ public function index(Request $request)
         ->pluck('tahun')
         ->toArray();
 
-    // Inisialisasi variabel (tetap sama seperti kode Anda)
     $lineChartLabels = []; $barChartLabels = []; $lineChartDatasets = [];
     $barChartDatasets = []; $radarLabels = []; $radarData = [];
     $radarTarget = []; $indikatorLabels = []; $doughnutData = [];
@@ -51,17 +48,12 @@ public function index(Request $request)
     'mixedValues'
 ));
     }
-
-    // 2. Filter HasilIndeks (Pastikan model ini punya kolom modul)
     $queryIndeks = HasilIndeks::where('modul', $modul)->orderBy('tahun');
     if ($tahunDipilih !== 'all') { $queryIndeks->where('tahun', $tahunDipilih); }
     $hasilIndeks = $queryIndeks->get();
     $mixedLabels = $hasilIndeks->pluck('tahun');
     $mixedValues = $hasilIndeks->pluck('indeks_spbe');
-
     $tahunMaster = ($tahunDipilih === 'all') ? max($tahunList) : $tahunDipilih;
-
-    // 3. Filter Aspek List (WAJIB JOIN ke Domain untuk filter Modul)
     $aspekList = Aspek::join('domain', 'aspek.id_domain', '=', 'domain.id_domain')
         ->where('domain.modul', $modul)
         ->where('aspek.tahun', $tahunMaster)
@@ -69,14 +61,12 @@ public function index(Request $request)
         ->orderBy('aspek.urutan')
         ->get();
 
-    // 4. Filter Indikator (WAJIB whereHas ke Domain)
     $indikators = Indikator::whereHas('aspek.domain', function($q) use ($modul) {
             $q->where('modul', $modul);
         })
-        ->where('tahun', $tahunMaster) // Gunakan tahunMaster agar konsisten
+        ->where('tahun', $tahunMaster)
         ->get();
 
-    // 5. Label Chart
     if ($tahunDipilih === 'all') {
         $lineChartLabels = $tahunList;
         $barChartLabels = $tahunList;
@@ -89,7 +79,6 @@ public function index(Request $request)
             ->pluck('aspek.nama_aspek')->toArray();
     }
 
-    // 6. Line Chart Data (Domain)
     $namaDomainUnik = Domain::where('modul', $modul)->distinct()->pluck('nama_domain');
     foreach ($namaDomainUnik as $nama) {
         $nilaiPerTahun = []; $hasValue = false;
@@ -115,7 +104,6 @@ public function index(Request $request)
         }
     }
 
-    // 7. Bar Chart Data (Aspek)
     $namaAspekLoop = ($tahunDipilih === 'all') 
         ? Aspek::join('domain', 'aspek.id_domain', '=', 'domain.id_domain')->where('domain.modul', $modul)->distinct()->pluck('nama_aspek') 
         : $barChartLabels;
@@ -128,7 +116,7 @@ public function index(Request $request)
             $nilaiAsesor = DB::table('penilaian_kriteria')
                 ->join('indikator', 'penilaian_kriteria.id_indikator', '=', 'indikator.id_indikator')
                 ->join('aspek', 'indikator.id_aspek', '=', 'aspek.id_aspek')
-                ->join('domain', 'aspek.id_domain', '=', 'domain.id_domain') // Join lagi
+                ->join('domain', 'aspek.id_domain', '=', 'domain.id_domain')
                 ->where('domain.modul', $modul)
                 ->where(['penilaian_kriteria.tahun' => $th, 'aspek.nama_aspek' => $nama, 'penilaian_kriteria.status' => 'final'])
                 ->avg('penilaian_kriteria.nilai_asesor_internal');

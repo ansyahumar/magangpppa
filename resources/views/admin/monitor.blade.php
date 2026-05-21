@@ -31,8 +31,6 @@
 @php
     $tahunAktif = request('tahun', $tahun);
     $modulAktif = request('modul', 'spbe');
-
-    // 1. Ambil Total Indikator HANYA untuk modul ini
     $totalIndikator = \DB::table('indikator')
         ->join('aspek', 'indikator.id_aspek', '=', 'aspek.id_aspek')
         ->join('domain', 'aspek.id_domain', '=', 'domain.id_domain')
@@ -40,7 +38,6 @@
         ->where('domain.modul', $modulAktif)
         ->count();
 
-    // 2. Hitung berapa banyak yang sudah diisi Nilai Akhirnya
     $terisi = \DB::table('penilaian_kriteria')
         ->join('indikator', 'penilaian_kriteria.id_indikator', '=', 'indikator.id_indikator')
         ->join('aspek', 'indikator.id_aspek', '=', 'aspek.id_aspek')
@@ -50,7 +47,6 @@
         ->whereNotNull('penilaian_kriteria.nilai_akhir_external')
         ->count();
 
-    // 3. Kalkulasi Persentase
     $persenProgres = $totalIndikator > 0 ? round(($terisi / $totalIndikator) * 100) : 0;
 @endphp
 
@@ -180,7 +176,6 @@
 </div>
 <div class="flex justify-end mt-8 mb-4"> 
     @php
-        // Cek apakah sudah ada data yang berstatus final di tahun dan modul ini
         $isLockedGlobal = \DB::table('penilaian_kriteria')
             ->where('tahun', $tahun)
             ->where('modul', request('modul', 'spbe'))
@@ -205,18 +200,11 @@
 </div>
 <script>
 async function confirmEx() {
-    // 1. Ambil semua baris data (sesuaikan selector jika perlu, misal: #tabel-data tbody tr)
     const rows = document.querySelectorAll('table tbody tr');
     let emptyRows = [];
 
     rows.forEach((row) => {
-        // Kita ambil teks dari kolom terakhir atau kolom tempat Nilai Akhir Eksternal berada
-        // Jika Nilai Akhir ada di kolom ke-7, gunakan: row.cells[6].innerText
-        // Untuk amannya, kita cek seluruh teks di baris tersebut
         const rowText = row.innerText.trim();
-
-        // CEK KONDISI KOSONG:
-        // Ganti '-' atau '0' di bawah ini dengan apa yang tampil di tabel jika belum dinilai
         const isUnfilled = rowText.includes('Belum Diisi') || 
                            rowText.includes('Belum Dinilai') || 
                            rowText.endsWith('-') || 
@@ -227,7 +215,6 @@ async function confirmEx() {
         }
     });
 
-    // 2. JIKA DITEMUKAN DATA KOSONG
     if (emptyRows.length > 0) {
         return Swal.fire({
             icon: 'error',
@@ -237,17 +224,13 @@ async function confirmEx() {
             confirmButtonText: 'Cari Indikator',
             returnFocus: false
         }).then(() => {
-            // Scroll ke baris kosong pertama
             const firstEmpty = emptyRows[0];
             firstEmpty.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            
-            // Highlight baris agar admin tahu mana yang kosong
             firstEmpty.style.backgroundColor = "#fee2e2"; 
             setTimeout(() => { firstEmpty.style.backgroundColor = ""; }, 3000);
         });
     }
 
-    // 3. JIKA LENGKAP, BARU KONFIRMASI FINAL
     const result = await Swal.fire({
         title: 'Kalkulasi Nilai Eksternal?',
         text: "Sistem akan menghitung Indeks Asesor Eksternal dan Nilai Akhir secara bersamaan. Data akan dikunci setelah ini.",
@@ -391,7 +374,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function renderUI(data, isExternalFilled, nomorUrut) {
     const content = document.getElementById('kriteria-content');
     const selectTahun = document.getElementById('global-select-tahun');
-    const saveBtn = document.getElementById('save-kriteria'); // Pastikan ID ini sesuai dengan tombol simpan Anda
+    const saveBtn = document.getElementById('save-kriteria');
     
     const detail = data.detail || { nomor_indikator: '-', nama_indikator: '-' };
     const tahunHistori = data.tahun_histori || (selectTahun.value - 1);
@@ -403,16 +386,14 @@ function renderUI(data, isExternalFilled, nomorUrut) {
         return found ? found[fieldName] : null;
     };
 
-    // --- LOGIKA PENGUNCIAN (FIX) ---
     const isLocked = kriteriaList.some(k => k.status_monitor === 'final');
 
-    // Kontrol Tombol Simpan (Sembunyikan jika sudah final)
    if (saveBtn) {
         if (isLocked) {
-            saveBtn.style.setProperty('display', 'none', 'important'); // Paksa sembunyikan
+            saveBtn.style.setProperty('display', 'none', 'important');
             saveBtn.classList.add('hidden');
         } else {
-            saveBtn.style.setProperty('display', 'block', 'important'); // Munculkan kembali
+            saveBtn.style.setProperty('display', 'block', 'important');
             saveBtn.classList.remove('hidden'); 
         }
     }
@@ -461,10 +442,7 @@ function renderUI(data, isExternalFilled, nomorUrut) {
 
     kriteriaList.forEach((k, i) => {
         const level = (i % 5) + 1;
-        
-        // --- ATRIBUT DISABLE UNTUK CHECKBOX EKSTERNAL ---
         const disAdmin = (isLocked) ? 'disabled' : '';
-
         const isVerified = (k.status_target === 'verified');
         const isCheckedHistori  = (Number(k.nilai_histori) === level) ? 'checked' : '';
         const isCheckedTarget = (isVerified && Number(k.nilai_target) === level) ? 'checked' : '';
@@ -656,11 +634,7 @@ function renderUI(data, isExternalFilled, nomorUrut) {
     }
 
     html += `</tbody></table></div></div>`;
-    
-    // Render semua HTML ke container
     content.innerHTML = html;
-
-    // Tambahkan kembali event listener checkbox
     content.querySelectorAll('.kriteria-cb').forEach(cb => {
         cb.onchange = function() {
             if (this.checked) {
@@ -736,7 +710,7 @@ fd.append('nilai_asesor_external', checkedAsesorEx.value);
                 headers: { 'X-Requested-With': 'XMLHttpRequest' } 
             });
             
-            const responseData = await res.json(); // Ambil pesan dari controller
+            const responseData = await res.json(); 
 
             if (res.ok) {
                 Swal.fire({ 

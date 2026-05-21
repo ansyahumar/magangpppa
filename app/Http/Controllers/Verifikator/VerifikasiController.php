@@ -17,7 +17,7 @@ class VerifikasiController extends Controller
                 ->join('indikator', 'penilaian_kriteria.id_indikator', '=', 'indikator.id_indikator')
                 ->join('aspek', 'indikator.id_aspek', '=', 'aspek.id_aspek')
                 ->join('domain', 'aspek.id_domain', '=', 'domain.id_domain')
-                ->where('domain.modul', $modul) // Filter kolom modul di tabel domain
+                ->where('domain.modul', $modul)
                 ->where('penilaian_kriteria.status', 'final')
                 ->whereNotNull('penilaian_kriteria.nilai_asesor_internal')
                 ->where('penilaian_kriteria.nilai_asesor_internal', '>', 0)
@@ -35,7 +35,6 @@ class VerifikasiController extends Controller
 
     public function listPenilaian($tahun, $modul)
     {
-        // Cek ketersediaan data spesifik modul dan tahun
         $cekAsesor = DB::table('penilaian_kriteria')
             ->join('indikator', 'penilaian_kriteria.id_indikator', '=', 'indikator.id_indikator')
             ->join('aspek', 'indikator.id_aspek', '=', 'aspek.id_aspek')
@@ -51,9 +50,8 @@ class VerifikasiController extends Controller
                 ->with('error', "Data penilaian mandiri untuk modul " . strtoupper($modul) . " tahun $tahun belum tersedia.");
         }
 
-        // Ambil domain milik modul tertentu
         $domains = Domain::where('tahun', $tahun)
-            ->where('modul', $modul) // Filter Utama
+            ->where('modul', $modul)
             ->with(['aspek' => function($q) use ($tahun) {
                 $q->where('tahun', $tahun)->orderBy('urutan', 'asc');
             }, 'aspek.indikator' => function($q) use ($tahun) {
@@ -62,7 +60,6 @@ class VerifikasiController extends Controller
             ->orderBy('urutan', 'asc')
             ->get();
         
-        // Status penilaian berdasarkan join modul
         $statusPenilaian = DB::table('penilaian_kriteria')
             ->join('indikator', 'penilaian_kriteria.id_indikator', '=', 'indikator.id_indikator')
             ->join('aspek', 'indikator.id_aspek', '=', 'aspek.id_aspek')
@@ -71,7 +68,6 @@ class VerifikasiController extends Controller
             ->where('domain.modul', $modul)
             ->value('status_vrifU') ?? 'draft'; 
 
-        // Ambil draft nilai
         $draft = DB::table('penilaian_kriteria')
             ->select('penilaian_kriteria.id_indikator', DB::raw('MAX(nilai_verifikator_internal) as nilai_verifikator_internal'))
             ->join('indikator', 'penilaian_kriteria.id_indikator', '=', 'indikator.id_indikator')
@@ -93,17 +89,11 @@ class VerifikasiController extends Controller
     
     try {
         DB::beginTransaction();
-
-        // 1. Update status menjadi final di tabel kriteria
         DB::table('penilaian_kriteria')
             ->where('tahun', $tahun)
             ->where('modul', $modul)
             ->update(['status_vrifU' => 'final']); 
-
-        // 2. TRIGGER PERHITUNGAN (PENTING!)
-        // Panggil fungsi dari PenilaianHelper untuk menghitung nilai verifikator
         PenilaianHelper::calculateVerifikator($tahun, $modul);
-
         DB::commit();
         return redirect()->back()->with('success', "Modul " . strtoupper($modul) . " Berhasil Difinalisasi dan Dihitung.");
         
@@ -118,15 +108,12 @@ class VerifikasiController extends Controller
         $id_indikator = $request->id_indikator;
         $tahun = $request->tahun;
         $modul = $request->modul;
-
-        // 1. Ambil data kriteria langsung dari tabel utama
         $kriteria = DB::table('penilaian_kriteria')
             ->where('id_indikator', $id_indikator)
             ->where('tahun', $tahun)
             ->where('modul', $modul)
             ->first();
 
-        // 2. Cek apakah data ditemukan
         if (!$kriteria) {
             return response()->json([
                 'status' => 'error', 
@@ -134,7 +121,6 @@ class VerifikasiController extends Controller
             ], 404);
         }
 
-        // 3. Validasi: Apakah Asesor sudah mengisi nilai?
         if (is_null($kriteria->nilai_asesor_internal) || $kriteria->nilai_asesor_internal == 0) {
             return response()->json([
                 'status' => 'error', 
@@ -142,16 +128,14 @@ class VerifikasiController extends Controller
             ], 400);
         }
 
-        // 4. Ambil nilai baru dari request (JSON decode kriteria)
         $kriteriaData = json_decode($request->kriteria, true);
         $nilaiBaru = $kriteriaData[0]['nilai_verifikator_internal'];
 
-        // 5. Update menggunakan Primary Key yang benar: 'id_penilaian'
         DB::table('penilaian_kriteria')
-            ->where('id_penilaian', $kriteria->id_penilaian) // Sesuai gambar database Anda
+            ->where('id_penilaian', $kriteria->id_penilaian)
             ->update([
                 'nilai_verifikator_internal' => $nilaiBaru,
-                'status_vrifU' => 'verifed', // Contoh jika ingin mengubah status verifikasi
+                'status_vrifU' => 'verifed',
                 'updated_at' => now()
             ]);
 

@@ -85,13 +85,12 @@
 
     <div class="flex flex-col sm:flex-row justify-end items-center gap-4 mt-10 pb-12 border-t pt-8">
     @php 
-        // Melakukan join dari penilaian_kriteria ke domain untuk mengecek kolom 'modul'
         $isVerified = DB::table('penilaian_kriteria')
                         ->join('indikator', 'penilaian_kriteria.id_indikator', '=', 'indikator.id_indikator')
                         ->join('aspek', 'indikator.id_aspek', '=', 'aspek.id_aspek')
                         ->join('domain', 'aspek.id_domain', '=', 'domain.id_domain')
                         ->where('domain.tahun', $tahun)
-                        ->where('domain.modul', $modul) // Mengecek modul dari tabel domain
+                        ->where('domain.modul', $modul) 
                         ->where('penilaian_kriteria.status_target', 'verified')
                         ->exists();
     @endphp
@@ -221,10 +220,8 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function confirmAction(action) {
-    // 1. Definisikan variabel modul dan tahun dari PHP ke JS
     const modulAktif = "{{ $modul }}"; 
     const tahunAktif = "{{ $tahun }}";
-
     const title = action === 'verify' ? 'Setujui & Publish?' : 'Kembalikan ke pengisian target ?';
     const text = action === 'verify' 
         ? `Target ${modulAktif.toUpperCase()} akan dipublikasikan secara nasional.` 
@@ -253,7 +250,7 @@ async function confirmAction(action) {
                 body: JSON.stringify({
                     tahun: tahunAktif,
                     action: action,
-                    modul: modulAktif // <--- TAMBAHKAN BARIS INI
+                    modul: modulAktif
                 })
             });
 

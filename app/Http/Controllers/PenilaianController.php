@@ -27,8 +27,6 @@ $modul = $request->input('modul', 'spbe');
         ->orderBy('tahun', 'desc')
         ->pluck('tahun');
     
-
-    // 1. Ambil ID Indikator yang masuk dalam modul & tahun ini (sebagai filter tambahan)
     $indikatorIds = DB::table('indikator')
     ->join('aspek', 'indikator.id_aspek', '=', 'aspek.id_aspek')
     ->join('domain', 'aspek.id_domain', '=', 'domain.id_domain')
@@ -37,8 +35,6 @@ $modul = $request->input('modul', 'spbe');
     ->pluck('indikator.id_indikator')
     ->toArray();
 
-    // 2. Cek apakah ada record yang berstatus 'final' di tabel penilaian_indikator
-    // Pastikan filter user_id ada jika setiap unit kerja mengisi sendiri-sendiri
     $isFinal = DB::table('penilaian_indikator')
         ->whereIn('id_indikator', $indikatorIds)
         ->where('tahun', $tahun)
@@ -52,8 +48,6 @@ $locked = HasilIndeks::where('tahun', $tahun)
         ->where('modul', $modul)
         ->exists();
 
-    // DEBUGGING (Hapus jika sudah jalan)
-    // dd($isFinal);
     $draft = PenilaianIndikator::where('tahun', $tahun)
         ->get()
         ->keyBy('id_indikator');
@@ -77,7 +71,7 @@ $locked = HasilIndeks::where('tahun', $tahun)
     'locked'             => $locked,
     'draft'              => $draft,
     'availableYears'     => $availableYears,
-    'statusKunciFinal'   => $statusKunciFinal, // Nama baru yang unik
+    'statusKunciFinal'   => $statusKunciFinal,
 ]);
 }
 
@@ -89,7 +83,6 @@ public function process(Request $request)
     try {
         DB::beginTransaction();
 
-        // 1. Ambil ID indikator milik modul dan tahun ini
         $targetIndikatorIds = DB::table('indikator')
             ->join('aspek', 'indikator.id_aspek', '=', 'aspek.id_aspek')
             ->join('domain', 'aspek.id_domain', '=', 'domain.id_domain')
@@ -101,7 +94,6 @@ public function process(Request $request)
             throw new \Exception("Tidak ada data indikator untuk modul $modul di tahun $tahun.");
         }
 
-        // 2. Paksa update status menjadi 'final' agar tombol terkunci
         DB::table('penilaian_kriteria')
             ->where('tahun', $tahun)
             ->whereIn('id_indikator', $targetIndikatorIds)
@@ -114,8 +106,6 @@ public function process(Request $request)
             ->where('modul', $modul)
             ->update(['status' => 'final']);
 
-        // 3. Jalankan Helper Perhitungan
-        // Fungsi ini akan menghitung nilai akhir berdasarkan data yang baru saja di-set 'final'
         PenilaianHelper::calculateIndices($tahun, $modul);
         
         DB::commit();
@@ -132,7 +122,7 @@ public function process(Request $request)
 public function hasilPenilaian(Request $request)
 {
 $tahunDipilih = $request->input('tahun', date('Y'));
-    $modul = $request->input('modul', 'spbe'); // Tangkap modul
+    $modul = $request->input('modul', 'spbe');
 
     $res = PenilaianHelper::calculateIndices($tahunDipilih, $modul);
     if (is_numeric($tahunDipilih)) {
@@ -222,7 +212,6 @@ public function targetP2(Request $request)
 {
     $modul = $request->input('modul', 'spbe');
     
-    // 1. Tersaring berdasarkan modul (Tabel Domain punya kolom modul)
     $availableYears = Domain::where('modul', $modul)
         ->distinct()
         ->orderBy('tahun', 'desc')
@@ -230,22 +219,18 @@ public function targetP2(Request $request)
 
     $tahun = $request->input('tahun', $availableYears->first() ?? date('Y'));
 
-    // 2. Perbaikan Eager Loading
-    $domains = Domain::where('modul', $modul) // Filter utama di sini
+    $domains = Domain::where('modul', $modul)
         ->where('tahun', $tahun)
         ->with(['aspek' => function($q) use ($tahun) {
-            // Hapus filter modul di sini karena tabel 'aspek' tidak punya kolom 'modul'
             $q->where('tahun', $tahun) 
               ->orderBy('urutan', 'asc');
         }, 'aspek.indikator' => function($q) use ($tahun) {
-            // Hapus filter modul di sini karena tabel 'indikator' tidak punya kolom 'modul'
             $q->where('tahun', $tahun)
               ->orderBy('urutan', 'asc');
         }])
         ->orderBy('urutan', 'asc')
         ->get();
 
-    // 3. Draft tetap butuh modul (Pastikan tabel 'penilaian_kriteria' punya kolom modul)
     $draft = DB::table('penilaian_kriteria')
         ->where('modul', $modul)
         ->where('tahun', $tahun)
@@ -256,7 +241,6 @@ public function targetP2(Request $request)
         ->get()
         ->pluck('max_target', 'id_indikator');
 
-    // 4. Finalized years tetap butuh modul
     $finalizedYears = DB::table('penilaian_kriteria')
         ->where('modul', $modul)
         ->whereIn('status_target', ['draft', 'final', 'verified'])
@@ -272,11 +256,8 @@ public function finalisasiTarget(Request $request)
 {
     $tahun = $request->tahun;
     $modul = $request->input('modul', 'spbe'); 
-
     try {
         DB::beginTransaction();
-
-        // 1. Ambil semua aspek yang terhubung dengan domain modul terkait
         $aspeksInModul = DB::table('aspek')
             ->join('domain', 'aspek.id_domain', '=', 'domain.id_domain')
             ->where('domain.modul', $modul)
@@ -289,33 +270,28 @@ public function finalisasiTarget(Request $request)
         }
 
         foreach ($aspeksInModul as $asp) {
-            // Pastikan bobot_aspek ada (kunci utama perhitungan)
             DB::table('bobot_aspek')->updateOrInsert(
                 ['id_aspek' => $asp->id_aspek],
-                ['bobot' => 5.0] // Default bobot jika belum ada
+               
             );
 
-            // Pastikan bobot_domain ada
             DB::table('bobot_domain')->updateOrInsert(
                 ['id_domain' => $asp->id_domain],
-                ['bobot' => 25.0] 
+               
             );
         }
 
-        // 2. Update status_target menjadi final untuk modul ini
         DB::table('penilaian_kriteria')
             ->where('tahun', $tahun)
             ->where('modul', $modul)
             ->update(['status_target' => 'final']);
 
-        // 3. Kalkulasi
         $hasil = PenilaianHelper::calculateTarget($tahun, $modul);
 
         if (!isset($hasil['target_spbe']) || $hasil['target_spbe'] <= 0) {
             throw new \Exception('Gagal: Hasil kalkulasi 0. Pastikan nilai target indikator sudah diisi.');
         }
 
-        // 4. Simpan ke hasil_indeks
         DB::table('hasil_indeks')->updateOrInsert(
             ['tahun' => $tahun, 'modul' => $modul],
             ['target_spbe' => $hasil['target_spbe'], 'updated_at' => now()]
@@ -333,7 +309,7 @@ public function sinkronisasiBobot($tahun)
 $aspeks = DB::table('aspek')
     ->join('domain', 'aspek.id_domain', '=', 'domain.id_domain')
     ->where('domain.tahun', $tahun)
-    ->where('domain.modul', $modul) // Tambahkan parameter modul di fungsi ini
+    ->where('domain.modul', $modul)
     ->select('aspek.*')
     ->get();
         foreach ($aspeks as $aspek) {
@@ -367,32 +343,10 @@ $aspeks = DB::table('aspek')
         }
     }
 }
-// public function finalisasiVerifikator(Request $request)
-// {
-//     $tahun = $request->input('tahun');
-//     try {
-//         DB::beginTransaction();
-
-//         DB::table('penilaian_kriteria')
-//             ->where('tahun', $tahun)
-//             ->update(['status_vrifU' => 'final']);
-
-//         $hasil = PenilaianHelper::calculateVerifikator($tahun);
-
-//         DB::commit();
-//         return redirect()->back()->with('success', "Data Berhasil Dikunci!");
-//     } catch (\Exception $e) {
-//         DB::rollBack();
-//         return redirect()->back()->with('error', $e->getMessage());
-//     }
-// }
 public function dashboardP2(Request $request)
 {
-    // 1. Ambil Parameter Input (Default: SPBE & Tahun All)
     $modul = $request->input('modul', 'spbe');
     $tahunDipilih = $request->input('tahun', 'all');
-
-    // 2. Inisialisasi Variabel Default (PENTING: Mencegah Error Undefined Variable di Blade)
     $mixedLabels = collect([]);
     $mixedValues = collect([]);
     $lineChartLabels = [];
@@ -404,8 +358,6 @@ public function dashboardP2(Request $request)
     $indikatorLabels = collect([]);
     $doughnutData = [];
     $tahunMaster = date('Y');
-
-    // 3. Ambil Daftar Tahun yang Memiliki Data Final & Bernilai pada Modul Terkait
     $tahunList = DB::table('penilaian_kriteria')
                     ->where('modul', $modul)
                     ->where('status', 'final')
@@ -419,7 +371,6 @@ public function dashboardP2(Request $request)
 
     $lineChartLabels = ($tahunDipilih === 'all') ? $tahunList : [$tahunDipilih];
 
-    // 4. Jika Data Kosong, Langsung Return View dengan Variabel Kosong
     if (empty($tahunList)) {
         return view('p2.dashboard', compact(
             'modul', 'tahunDipilih', 'tahunList', 'mixedLabels', 'mixedValues',
@@ -428,7 +379,6 @@ public function dashboardP2(Request $request)
         ));
     }
 
-    // 5. Query Indeks Keseluruhan (Mixed Chart)
     $queryIndeks = HasilIndeks::where('modul', $modul)->orderBy('tahun');
     if ($tahunDipilih !== 'all') {
         $queryIndeks->where('tahun', $tahunDipilih);
@@ -436,11 +386,7 @@ public function dashboardP2(Request $request)
     $hasilIndeks = $queryIndeks->get();
     $mixedLabels = $hasilIndeks->pluck('tahun');
     $mixedValues = $hasilIndeks->pluck('indeks_spbe');
-
-    // 6. Penentuan Tahun Master untuk Struktur Domain/Aspek
     $tahunMaster = ($tahunDipilih === 'all') ? max($tahunList) : $tahunDipilih;
-
-    // 7. Ambil Master Data Hierarchy (Domain, Aspek, Indikator) filtered by Modul
     $domainList = Domain::where('modul', $modul)->where('tahun', $tahunMaster)
         ->whereHas('aspek.indikator.penilaian', function($q) use ($tahunMaster, $modul) {
             $q->where('tahun', $tahunMaster)->where('modul', $modul)->whereNotNull('nilai_asesor_internal');
@@ -470,7 +416,6 @@ $indikators = Indikator::whereHas('aspek.domain', function($q) use ($modul) {
     ->orderBy('urutan')
     ->get();
 
-    // 8. Kalkulasi Data Line Chart (Domain)
     $namaDomainUnik = $domainList->pluck('nama_domain')->unique();
     foreach ($namaDomainUnik as $nama) {
         $nilaiPerTahun = [];
@@ -501,7 +446,6 @@ $indikators = Indikator::whereHas('aspek.domain', function($q) use ($modul) {
         }
     }
 
-    // 9. Kalkulasi Data Bar Chart (Aspek)
     $namaAspekUnik = $aspekList->pluck('nama_aspek')->unique();
     foreach ($namaAspekUnik as $nama) {
         $nilaiPerTahun = [];
@@ -518,13 +462,12 @@ $indikators = Indikator::whereHas('aspek.domain', function($q) use ($modul) {
                 ->where('aspek.nama_aspek', $nama)
                 ->avg('penilaian_kriteria.nilai_asesor_internal');
 
-// Tambahkan join ke tabel domain untuk mengakses kolom modul
 $dataAspek = DB::table('aspek')
     ->join('domain', 'aspek.id_domain', '=', 'domain.id_domain')
-    ->where('domain.modul', $modul) // Filter modul dari tabel domain
+    ->where('domain.modul', $modul)
     ->where('aspek.tahun', $th)
     ->where('aspek.nama_aspek', $nama)
-    ->select('aspek.*') // Pastikan hanya mengambil kolom dari tabel aspek
+    ->select('aspek.*')
     ->first();            $nilaiVerif = $dataAspek->aspek_verif ?? null;
             $hasilAkhir = (!is_null($nilaiVerif)) ? $nilaiVerif : ($nilaiAsesor ?? 0);
 
@@ -539,15 +482,12 @@ $dataAspek = DB::table('aspek')
             ];
         }
     }
-
-    // 10. Kalkulasi Data Radar Chart (Aspek Aktif)
     $tahunAktif = ($tahunDipilih === 'all') ? max($tahunList) : $tahunDipilih;
-// Perbaikan pada query aspeksRadar
 $aspeksRadar = DB::table('aspek')
-    ->join('domain', 'aspek.id_domain', '=', 'domain.id_domain') // Hubungkan ke tabel domain
-    ->where('domain.modul', $modul)                             // Ambil modul dari tabel domain
+    ->join('domain', 'aspek.id_domain', '=', 'domain.id_domain') 
+    ->where('domain.modul', $modul)
     ->where('aspek.tahun', $tahunAktif)
-    ->select('aspek.*')                                         // Ambil semua kolom milik aspek saja
+    ->select('aspek.*')
     ->orderBy('aspek.urutan', 'asc')
     ->get();
     foreach ($aspeksRadar as $asp) {
@@ -564,7 +504,6 @@ $aspeksRadar = DB::table('aspek')
         $radarTarget[] = (float)($asp->target ?? 0);
     }
 
-    // 11. Kalkulasi Data Doughnut Chart (Indikator)
     $namaIndikatorUnik = $indikators->pluck('nama_indikator')->unique();
     $indikatorLabels = $namaIndikatorUnik->values();
     foreach ($namaIndikatorUnik as $nama) {
@@ -579,7 +518,6 @@ $aspeksRadar = DB::table('aspek')
         $doughnutData[] = round($nilai ?? 0, 2);
     }
 
-    // 12. Return View dengan Data Lengkap
     return view('p2.dashboard', compact(
         'modul', 'tahunDipilih', 'tahunList', 'mixedLabels', 'mixedValues',
         'lineChartLabels', 'lineChartDatasets', 'barChartDatasets',

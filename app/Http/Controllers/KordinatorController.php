@@ -13,12 +13,9 @@ use App\Models\Aspek;
 
 class KordinatorController extends Controller
 {
-// Tambahkan Request $request di sini
 public function dashboard(Request $request) 
 {
-    // Sekarang variabel $request sudah tersedia dan bisa digunakan
     $modulAktif = $request->get('modul', 'spbe'); 
-
     $tahunTarget = DB::table('penilaian_kriteria')
         ->select('tahun')
         ->selectRaw("SUM(CASE WHEN status_target = 'verified' THEN 1 ELSE 0 END) as total_verified")
@@ -55,16 +52,13 @@ public function kirimKeKoordinator(Request $request)
 }
 public function showTargetVerif($tahun, Request $request)
 {
-    // Tangkap variabel modul dari URL, defaultnya 'spbe' jika tidak ada
     $modul = $request->get('modul', 'spbe');
-
     $penilaianRaw = DB::table('penilaian_kriteria')
                 ->where('tahun', $tahun)
-                ->where('modul', $modul) // Sekarang variabel $modul sudah terdefinisi
+                ->where('modul', $modul)
                 ->get();
 
     if($penilaianRaw->isEmpty()) {
-        // Tambahkan query modul di redirect agar tidak kehilangan konteks
         return redirect()->route('kordinator.dashboard', ['modul' => $modul])
                          ->with('error', 'Data tidak ditemukan.');
     }
@@ -87,7 +81,6 @@ public function showTargetVerif($tahun, Request $request)
 
     $availableYears = DB::table('penilaian_kriteria')->distinct()->pluck('tahun')->sortDesc();
 
-    // Pastikan mengirim variabel 'modul' ke view agar UI bisa menyesuaikan warna/label
     return view('kordinator.targetverif', compact('domains', 'draft', 'tahun', 'availableYears', 'isVerified', 'modul'));
 }
 
@@ -105,28 +98,19 @@ public function indexNilai(Request $request) {
 
 public function showChart(Request $request)
 {
-    // 1. Inisialisasi Parameter Dasar & Modul
     $modulAktif = $request->get('modul', 'spbe');
-    
-    // 2. Ambil List Tahun & Tahun Terpilih
-    // Kita ambil tahun dari HasilIndeks yang sesuai dengan modul agar dropdown relevan
     $tahunList = HasilIndeks::where('modul', $modulAktif)
                             ->orderBy('tahun', 'desc')
                             ->pluck('tahun')
                             ->toArray();
                             
     $tahunDipilih = $request->input('tahun', (count($tahunList) > 0 ? $tahunList[0] : date('Y')));
-    
-    // 3. Ambil Data Tren (Grafik Garis Utama)
     $hasilIndeks = HasilIndeks::where('modul', $modulAktif)->orderBy('tahun')->get();
     $mixedLabels = $hasilIndeks->pluck('tahun');
     $mixedValues = $hasilIndeks->pluck('indeks_spbe'); 
-    
-    // 4. Tentukan Tahun Master & Tahun Final untuk Logic Grafik
     $tahunMaster = ($tahunDipilih === 'all') ? (count($tahunList) > 0 ? max($tahunList) : date('Y')) : $tahunDipilih;
     $tahunFinalList = ($tahunDipilih === 'all') ? $mixedLabels->toArray() : [$tahunDipilih];
 
-    // 5. Query Master Data dengan JOIN ke Domain (Filter Modul Tanpa Ubah Database)
     $domainList = Domain::where('tahun', $tahunMaster)
                         ->where('modul', $modulAktif)
                         ->orderBy('urutan')
@@ -147,11 +131,9 @@ public function showChart(Request $request)
                         ->orderBy('indikator.urutan')
                         ->get();
 
-    // 6. Inisialisasi Penampung Dataset Grafik (PENTING: Agar tidak Undefined)
     $lineChartDatasets = [];
     $namaDomainUnik = Domain::where('modul', $modulAktif)->distinct()->pluck('nama_domain');
 
-    // 7. Logic Looping untuk Line Chart (Tren per Domain)
     foreach ($namaDomainUnik as $nama) {
         $nilaiPerTahun = [];
         $hasValue = false;
@@ -179,7 +161,6 @@ public function showChart(Request $request)
         }
     }
 
-    // 8. Logic Radar Chart (Aspek)
     $radarLabels = $aspekList->pluck('nama_aspek');
     $radarData = [];
     $radarTarget = [];
@@ -197,7 +178,6 @@ public function showChart(Request $request)
         
         $radarData[] = round($val->avg('nilai_asesor_internal') ?? 0, 2);
 
-        // Ambil Target
         if ($tahunDipilih === 'all') {
             $targetVal = DB::table('aspek')->where('nama_aspek', $aspek->nama_aspek)->orderBy('tahun', 'desc')->value('target');
         } else {
@@ -206,7 +186,6 @@ public function showChart(Request $request)
         $radarTarget[] = (float)($targetVal ?? 0);
     }
 
-    // 9. Logic Doughnut Chart (Indikator)
     $indikatorLabels = $indikators->pluck('nama_indikator');
     $doughnutData = [];
 
@@ -223,7 +202,6 @@ public function showChart(Request $request)
         $doughnutData[] = round($valInd->avg('nilai_asesor_internal') ?? 0, 2);
     }
 
-    // 10. Kirim Data ke View
     return view('kordinator.chart', compact(
         'modulAktif',
         'tahunDipilih', 
@@ -266,15 +244,13 @@ public function getDetailData($id, $tahun)
 public function approveTarget(Request $request)
 {
     $tahun = $request->tahun;
-    $modul = $request->modul; // Ambil parameter modul dari request
+    $modul = $request->modul;
     $action = $request->action;
     $user = Auth::user();
 
     try {
         DB::beginTransaction();
 
-        // 1. Ambil jatah ID Indikator yang hanya milik MODUL & TAHUN ini
-        // Ini kunci agar tidak menyentuh modul lain
         $myIndikatorIds = DB::table('indikator')
             ->join('aspek', 'indikator.id_aspek', '=', 'aspek.id_aspek')
             ->join('domain', 'aspek.id_domain', '=', 'domain.id_domain')
@@ -287,7 +263,6 @@ public function approveTarget(Request $request)
         }
 
         if ($action === 'verify') {
-            // Update status_target HANYA untuk jatah indikator di modul ini
             DB::table('penilaian_kriteria')
                 ->where('tahun', $tahun)
                 ->whereIn('id_indikator', $myIndikatorIds)
@@ -296,7 +271,6 @@ public function approveTarget(Request $request)
                     'updated_at' => now()
                 ]);
 
-            // Catat Logs
             foreach ($myIndikatorIds as $idInd) {
                 $catatan = DB::table('catatan_kriteria')
                     ->where(['id_indikator' => $idInd, 'tahun' => $tahun])
@@ -321,7 +295,6 @@ public function approveTarget(Request $request)
             ]);
 
         } else if ($action === 'reject') {
-            // Kosongkan status_target HANYA untuk modul ini
             DB::table('penilaian_kriteria')
                 ->where('tahun', $tahun)
                 ->whereIn('id_indikator', $myIndikatorIds)

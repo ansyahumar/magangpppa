@@ -47,24 +47,15 @@ Route::middleware(['auth', 'verified', 'role:user'])->group(function () {
     
    });
 Route::middleware(['auth', 'verified', 'role:user'])->group(function () {
-        // Route::post('/form-penilaian', [PenilaianController::class, 'process'])->name('penilaian.process');
         Route::get('/form-penilaian', [PenilaianController::class, 'form'])->name('penilaian.form');
         Route::post('/penilaian/process', [PenilaianController::class, 'process'])->name('penilaian.process');
 
 });
 
 Route::middleware(['auth', 'role:verifikator'])->group(function () {
-    // Dashboard Utama
     Route::get('/verifikator/dashboard', [VerifikasiController::class, 'index'])->name('verifikator.verifikasi');
-    
-    // Perbaikan: Tambahkan parameter {modul} agar sesuai dengan link di dashboard
-    // URL akan menjadi: /verifikator/penilaian/2026/spbe
     Route::get('/verifikator/penilaian/{tahun}/{modul}', [VerifikasiController::class, 'listPenilaian'])->name('verifikator.list');
-    
-    // Simpan hasil verifikasi per indikator
     Route::post('/verifikasi/store', [VerifikasiController::class, 'storeVerifikasi'])->name('verifikator.storeVerifikasi');
-    
-    // Tambahkan route untuk Finalisasi (kunci seluruh modul)
     Route::post('/verifikator/finalisasi', [VerifikasiController::class, 'finalisasi_verifikator'])->name('verifikator.finalisasi');
 });
 
@@ -129,7 +120,6 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
 
 
 Route::post('/admin/master-data/copy', [DataMasterController::class, 'copyStructure'])->name('admin.master.copy');
-// Tambahkan ini di file routes/web.php
 Route::post('/admin/finalisasi-eksternal', [PenilaianKriteriaController::class, 'finalisasiEksternal'])
     ->name('admin.finalisasi_eksternal');
 });

@@ -2,13 +2,9 @@
 
 @section('content')
 @php
-    // Tangkap modul aktif, default ke spbe
     $modulAktif = request('modul', 'spbe');
-    
     $tahun = $tahunDipilih ?? date('Y');
     $tahunLalu = is_numeric($tahun) ? $tahun - 1 : '-';
-    
-    // Filter semua query utama dengan where('modul', $modulAktif)
     $indeksSekarang = \DB::table('hasil_indeks')
                         ->where('tahun', $tahun)
                         ->where('modul', $modulAktif)
@@ -18,27 +14,21 @@
                     ->where('tahun', $tahunLalu)
                     ->where('modul', $modulAktif)
                     ->first();
-// DEFINISIKAN VARIABEL YANG HILANG DI SINI
     $spbeSekarang = $indeksSekarang->indeks_verif ?? ($indeksSekarang->indeks_spbe ?? 0);
     $spbeLama = $indeksLalu->indeks_verif ?? ($indeksLalu->indeks_spbe ?? 0);
     $selisih = $spbeSekarang - $spbeLama;
-
-    // Hitung Progress Pengerjaan
     $totalIndikator = \DB::table('indikator')->where('tahun', $tahun)->count();
     $sudahDiverif = \DB::table('penilaian_kriteria')
                         ->where('tahun', $tahun)
-                        // ->where('domain.modul', $modulAktif)
                         ->where('nilai_verifikator_internal', '>', 0)
                         ->count();
     
     $persenPengerjaan = $totalIndikator > 0 ? ($sudahDiverif / $totalIndikator) * 100 : 0;
     $allDomainsList = \DB::table('domain')
                         ->where('tahun', $tahun)
-                        // ->where('domain.modul', $modulAktif) // Tambahkan filter modul
                         ->orderBy('urutan', 'asc')
                         ->get();
     
-    // ... (Query lainnya seperti $totalIndikator dan $sudahDiverif juga tambahkan ->where('modul', $modulAktif))
     $totalIndikator = \DB::table('indikator')
                         ->where('tahun', $tahun)
                         ->count();
@@ -60,7 +50,6 @@
         </div>
 
         <div class="flex items-center gap-3">
-            <!-- Navigasi Tab Modul -->
             <div class="inline-flex p-1 bg-gray-100 dark:bg-gray-800 rounded-xl border shadow-sm">
                 <a href="{{ route('kordinator.nilai', ['modul' => 'spbe', 'tahun' => $tahun]) }}" 
                    class="px-4 py-2 rounded-lg text-xs font-bold transition-all {{ $modulAktif == 'spbe' ? 'bg-white dark:bg-blue-600 text-blue-600 dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-700' }}">

@@ -2,12 +2,9 @@
 
 @section('content')
 @php
-    // 1. Inisialisasi Parameter
     $tahun = $tahunDipilih ?? date('Y');
     $tahunLalu = is_numeric($tahun) ? $tahun - 1 : '-';
-    $modulAktif = request('modul', 'spbe'); // Default ke SPBE
-
-    // 2. Query Indeks (Ditambah filter modul)
+    $modulAktif = request('modul', 'spbe');
     $indeksSekarang = \DB::table('hasil_indeks')
                         ->where('tahun', $tahun)
                         ->where('modul', $modulAktif)
@@ -18,7 +15,6 @@
                         ->where('modul', $modulAktif)
                         ->first();
 
-    // 3. Query Domain & Aspek (Join ke tabel domain untuk filter modul)
     $domainData = \DB::table('domain_hasil')
                         ->join('domain', 'domain_hasil.id_domain', '=', 'domain.id_domain')
                         ->where('domain_hasil.tahun', $tahun)
@@ -44,7 +40,6 @@
                         ->get()
                         ->keyBy('id_aspek');
 
-    // 4. List Master Data (Filter Modul)
     $allDomainsList = \DB::table('domain')
                         ->where('tahun', $tahun)
                         ->where('modul', $modulAktif)
@@ -60,12 +55,10 @@
                         ->get()
                         ->groupBy('id_domain');
 
-    // 5. Perhitungan Nilai
     $spbeSekarang = $indeksSekarang->indeks_verif ?? ($indeksSekarang->indeks_spbe ?? 0);
     $spbeLama = $indeksLalu->indeks_verif ?? ($indeksLalu->indeks_spbe ?? 0);
     $selisih = $spbeSekarang - $spbeLama;
 
-    // 6. Progress Bar (Filter Modul)
     $totalIndikator = \DB::table('indikator')
                         ->join('aspek', 'indikator.id_aspek', '=', 'aspek.id_aspek')
                         ->join('domain', 'aspek.id_domain', '=', 'domain.id_domain')

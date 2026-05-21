@@ -54,8 +54,6 @@ public function index(Request $request)
 {
     $tahunDipilih = $request->input('tahun', date('Y'));
     $modul = $request->input('modul', 'spbe');
-
-    // PERBAIKAN: Filter tahun hanya yang ada di modul terkait
     $availableYears = Domain::where('modul', $modul)
         ->distinct()
         ->orderBy('tahun', 'asc')
@@ -109,9 +107,8 @@ public function storeDomain(Request $request)
                 'urutan'      => $urutanTerakhir + 1,
             ]);
 
-            // Menggunakan relasi jika sudah diset di model (lebih clean)
             BobotDomain::create([
-                'id_domain' => $domain->id_domain, // Pastikan primaryKey diset di model
+                'id_domain' => $domain->id_domain,
                 'tahun'     => $request->tahun,
                 'bobot'     => $request->bobot,
             ]);
@@ -139,7 +136,7 @@ public function updateDomain(Request $request, $id)
             $domain->update(['nama_domain' => $request->nama_domain]);
 
             BobotDomain::updateOrCreate(
-                ['id_domain' => $id, 'tahun' => $domain->tahun], // Pencarian lebih spesifik
+                ['id_domain' => $id, 'tahun' => $domain->tahun],
                 ['bobot' => $request->bobot]
             );
 
@@ -573,15 +570,12 @@ public function copyStructure(Request $request)
 {
     $tahunBaru = $request->tahun; 
     $modul = $request->modul ?? 'spbe'; 
-    
-    // Cari tahun terakhir yang tersedia khusus untuk modul ini sebagai sumber salinan
     $lastYearSource = Domain::where('modul', $modul)->max('tahun');
 
     if (!$lastYearSource) {
         return back()->with('error', 'Tidak ada data sumber untuk modul ' . strtoupper($modul));
     }
 
-    // 1. Validasi: Cek apakah data untuk tahun baru dan modul tersebut sudah ada
     $exists = Domain::where('tahun', $tahunBaru)
                     ->where('modul', $modul)
                     ->exists();
@@ -590,7 +584,6 @@ public function copyStructure(Request $request)
         return back()->with('error', 'Struktur tahun ' . $tahunBaru . ' untuk modul ' . strtoupper($modul) . ' sudah ada!');
     }
 
-    // 2. Ambil data dari tahun sumber (lastYearSource)
     $oldDomains = Domain::where('tahun', $lastYearSource)
         ->where('modul', $modul)
         ->with(['aspek.indikator.kriteria', 'aspek.indikator.penjelasan'])
@@ -603,8 +596,6 @@ public function copyStructure(Request $request)
             $newDom = $oldDom->replicate(); 
             $newDom->tahun = $tahunBaru;
             $newDom->save();
-
-            // Salin Bobot Domain
             $oldBobotDom = DB::table('bobot_domain')->where('id_domain', $oldDom->id_domain)->first();
             if ($oldBobotDom) {
                 DB::table('bobot_domain')->insert([
@@ -619,8 +610,6 @@ public function copyStructure(Request $request)
                 $newAsp->id_domain = $newDom->id_domain; 
                 $newAsp->tahun = $tahunBaru;
                 $newAsp->save();
-
-                // Salin Bobot Aspek
                 $oldBobotAsp = DB::table('bobot_aspek')->where('id_aspek', $oldAsp->id_aspek)->first();
                 if ($oldBobotAsp) {
                     DB::table('bobot_aspek')->insert([
@@ -635,8 +624,6 @@ public function copyStructure(Request $request)
                     $newInd->id_aspek = $newAsp->id_aspek; 
                     $newInd->tahun = $tahunBaru;
                     $newInd->save();
-
-                    // Salin Penjelasan Indikator (Lebih stabil menggunakan relasi)
                     if ($oldInd->penjelasan) {
                         $newPenjelasan = $oldInd->penjelasan->replicate();
                         $newPenjelasan->id_indikator = $newInd->id_indikator;
@@ -644,7 +631,6 @@ public function copyStructure(Request $request)
                         $newPenjelasan->save();
                     }
 
-                    // Salin Kriteria
                     foreach ($oldInd->kriteria as $oldKrit) {
                         $newKrit = $oldKrit->replicate();
                         $newKrit->id_indikator = $newInd->id_indikator; 

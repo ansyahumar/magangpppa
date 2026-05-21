@@ -310,28 +310,17 @@ title="Hapus Indikator">
 </div>
 <template x-teleport="body">
     <div id="modal-container">
-        {{-- 1. Modal Global (Selalu ada meskipun data kosong) --}}
         @include('admin.master.modals.kriteria')
         @include('admin.master.modals.penjelasan')
         @include('admin.master.modals.indikator')
-        
-        {{-- Pastikan file ini berisi modal dengan x-show="openModal === 'add-domain'" --}}
         @include('admin.master.modals.domain') 
-
-        {{-- 2. Modal Spesifik Data (Hanya muncul jika ada data) --}}
         @foreach($domain as $d)
-            {{-- Modal Edit Domain --}}
-            @include('admin.master.modals.domain', ['d' => $d])
-            
-            {{-- Modal Tambah Aspek untuk Domain ini --}}
-            @include('admin.master.modals.aspek-add', ['d' => $d])
-
-            @foreach($d->aspek as $a)
-                {{-- Modal Edit Aspek --}}
-                @include('admin.master.modals.aspek', ['a' => $a, 'd' => $d])
-                {{-- Modal Tambah Indikator untuk Aspek ini --}}
-                @include('admin.master.modals.indikator-add', ['a' => $a]) 
-            @endforeach
+        @include('admin.master.modals.domain', ['d' => $d])
+        @include('admin.master.modals.aspek-add', ['d' => $d])
+        @foreach($d->aspek as $a)
+        @include('admin.master.modals.aspek', ['a' => $a, 'd' => $d])
+        @include('admin.master.modals.indikator-add', ['a' => $a]) 
+        @endforeach
         @endforeach
     </div>
 </template>

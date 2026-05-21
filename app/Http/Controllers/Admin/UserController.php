@@ -12,14 +12,8 @@ class UserController extends Controller
 {
     public function index()
 {
-    // Mengambil data user dengan pagination
     $users = User::latest()->paginate(10);
-
-    // Mengambil data dari tabel satuan untuk dropdown di modal tambah/edit
-    // Kita urutkan berdasarkan nama satuan agar rapi di dropdown
     $satuanKerja = \DB::table('satuan')->orderBy('satuan', 'asc')->get();
-
-    // Kirim kedua variabel ke view
     return view('admin.users.index', compact('users', 'satuanKerja'));
 }
 

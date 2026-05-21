@@ -451,16 +451,12 @@ if (result.isConfirmed) {
 
         fd.append('tahun', tahunAktif);
         fd.append('id_indikator', activeIndikatorId);
-        fd.append('modul', "{{ $modul }}"); // <--- TAMBAHKAN INI (Sangat Penting)
+        fd.append('modul', "{{ $modul }}");
         fd.append('kriteria', JSON.stringify(kriteria));
         fd.append('pencapaian', pencapaianVerif);
         fd.append('is_edit_mode', isEditMode ? '1' : '0');
         fd.append('_token', '{{ csrf_token() }}');
            try {
-            // Pastikan URL ini sesuai dengan yang ada di routes/web.php Anda
-            // Jika di web.php adalah 'verifikator.storeVerifikasi', gunakan:
-            // const res = await fetch("{{ route('verifikator.storeVerifikasi') }}", {
-            
             const res = await fetch("{{ route('verifikator.storeVerifikasi') }}", {
                 method: 'POST',
                 body: fd,
@@ -472,7 +468,6 @@ if (result.isConfirmed) {
                 Swal.fire('Berhasil', isEditMode ? 'Perubahan berhasil disimpan.' : 'Data berhasil diinput.', 'success')
                     .then(() => window.location.reload());
             } else {
-                // Ini yang menangkap pesan "Gagal: Verifikator belum bisa memberi nilai..."
                 throw new Error(responseData.message || 'Gagal menyimpan data.');
             }
         } catch (e) {
@@ -498,22 +493,17 @@ const formFinalisasi = document.getElementById('form-finalisasi');
 
 if (formFinalisasi) {
     formFinalisasi.onsubmit = async (e) => {
-        e.preventDefault(); // Stop form
+        e.preventDefault();
         console.log("Tombol Finalisasi ditekan...");
 
-        // 1. Deteksi baris yang belum diverifikasi
-        // Kita cari teks 'Belum Diverif' tanpa mempedulikan spasi atau huruf besar/kecil
         const allRows = Array.from(document.querySelectorAll('tbody tr'));
-        
         const emptyRows = allRows.filter(row => {
             const text = row.innerText || "";
-            // Cek apakah mengandung kata kunci 'Belum Diverif' atau nilai verifikatornya 0
             return text.toLowerCase().includes('belum diverif');
         });
 
         console.log("Jumlah baris kosong ditemukan:", emptyRows.length);
 
-        // 2. JIKA ADA DATA KOSONG
         if (emptyRows.length > 0) {
             console.log("Peringatan muncul: Data belum lengkap");
             
@@ -523,10 +513,9 @@ if (formFinalisasi) {
                 text: `Masih ada ${emptyRows.length} indikator yang belum Anda verifikasi.`,
                 confirmButtonText: 'Cari Indikator',
                 confirmButtonColor: '#2563eb',
-                returnFocus: false // AGAR TIDAK SCROLL BALIK KE BAWAH
+                returnFocus: false 
             });
 
-            // Jalankan Scroll
             setTimeout(() => {
                 const targetRow = emptyRows[0];
                 targetRow.scrollIntoView({ 
@@ -534,9 +523,8 @@ if (formFinalisasi) {
                     block: 'center' 
                 });
 
-                // Tambahkan efek visual kuat
-                targetRow.style.backgroundColor = "#fee2e2"; // Red 100
-                targetRow.style.outline = "2px solid #ef4444"; // Red 500
+                targetRow.style.backgroundColor = "#fee2e2";
+                targetRow.style.outline = "2px solid #ef4444";
                 
                 setTimeout(() => {
                     targetRow.style.backgroundColor = "";
@@ -544,10 +532,9 @@ if (formFinalisasi) {
                 }, 4000);
             }, 300);
 
-            return; // Berhenti di sini
+            return;
         }
 
-        // 3. JIKA DATA SUDAH LENGKAP - KONFIRMASI FINALISASI
         console.log("Data lengkap, memunculkan modal konfirmasi...");
         
         const confirm = await Swal.fire({

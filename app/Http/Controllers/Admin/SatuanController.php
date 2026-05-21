@@ -41,9 +41,7 @@ class SatuanController extends Controller
 }
 public function destroy($id)
 {
-    // Menghapus data berdasarkan id_satuan
     \DB::table('satuan')->where('id_satuan', $id)->delete();
-
     return redirect()->back()->with('success', 'Data berhasil dihapus');
 }
 }

@@ -14,30 +14,19 @@ class P1Controller extends Controller
 
 public function lihatChart(Request $request)
 {
-    // 1. Tangkap parameter modul (default spbe)
     $modul = $request->input('modul', 'spbe');
-    
-    // Filter tahunList berdasarkan modul
     $tahunList = HasilIndeks::where('modul', $modul)->orderBy('tahun', 'desc')->pluck('tahun')->toArray();
     $tahunDipilih = $request->input('tahun', (count($tahunList) > 0 ? $tahunList[0] : date('Y')));
-    
-    // Query Indeks (Filter Modul)
     $hasilIndeks = HasilIndeks::where('modul', $modul)->orderBy('tahun')->get();
     $mixedLabels = $hasilIndeks->pluck('tahun');
     $mixedValues = $hasilIndeks->pluck('indeks_spbe');
-
     $tahunMaster = ($tahunDipilih === 'all') ? (count($tahunList) > 0 ? max($tahunList) : date('Y')) : $tahunDipilih;
-
-    // Filter Master Data berdasarkan Modul & Tahun
     $domainList = Domain::where('modul', $modul)->where('tahun', $tahunMaster)->orderBy('urutan')->get();
     $aspekList = Aspek::whereHas('domain', function($q) use ($modul) {
         $q->where('modul', $modul);
     })->where('tahun', $tahunMaster)->orderBy('urutan')->get();
-
     $lineChartDatasets = [];
     $tahunFinalList = ($tahunDipilih === 'all') ? $mixedLabels->toArray() : [$tahunDipilih];
-    
-    // Ambil nama domain unik khusus modul ini
     $namaDomainUnik = Domain::where('modul', $modul)->distinct()->pluck('nama_domain')->unique();
 
     foreach ($namaDomainUnik as $nama) {
@@ -48,7 +37,7 @@ public function lihatChart(Request $request)
                 ->join('indikator', 'penilaian_kriteria.id_indikator', '=', 'indikator.id_indikator')
                 ->join('aspek', 'indikator.id_aspek', '=', 'aspek.id_aspek')
                 ->join('domain', 'aspek.id_domain', '=', 'domain.id_domain')
-                ->where('domain.modul', $modul) // Filter Modul
+                ->where('domain.modul', $modul)
                 ->where('domain.nama_domain', $nama)
                 ->where('penilaian_kriteria.tahun', $th)
                 ->where('penilaian_kriteria.status', 'final')
@@ -65,7 +54,6 @@ public function lihatChart(Request $request)
         }
     }
 
-    // Radar Data (Filter Modul)
     $radarLabels = $aspekList->pluck('nama_aspek');
     $radarData = [];
     $radarTarget = [];
@@ -75,7 +63,7 @@ public function lihatChart(Request $request)
             ->join('indikator', 'penilaian_kriteria.id_indikator', '=', 'indikator.id_indikator')
             ->join('aspek', 'indikator.id_aspek', '=', 'aspek.id_aspek')
             ->join('domain', 'aspek.id_domain', '=', 'domain.id_domain')
-            ->where('domain.modul', $modul) // Filter Modul
+            ->where('domain.modul', $modul)
             ->where('aspek.nama_aspek', $aspek->nama_aspek)
             ->where('penilaian_kriteria.status', 'final');
         
@@ -98,8 +86,6 @@ public function lihatNilai(Request $request)
     $tahunTerbaru = DB::table('hasil_indeks')->where('modul', $modul)->orderBy('tahun', 'desc')->value('tahun');
     $tahunDipilih = $request->input('tahun', $tahunTerbaru ?? date('Y'));
     $tahunLalu = (int)$tahunDipilih - 1;
-
-    // Filter Domain & Aspek berdasarkan Modul
     $allDomainsList = DB::table('domain')
                         ->where('modul', $modul)
                         ->where('tahun', $tahunDipilih)
@@ -115,7 +101,6 @@ public function lihatNilai(Request $request)
                     ->get()
                     ->groupBy('id_domain');
 
-    // Data Hasil (Filter Modul)
     $domainData = DB::table('domain_hasil')
                     ->join('domain', 'domain_hasil.id_domain', '=', 'domain.id_domain')
                     ->where('domain.modul', $modul)
@@ -136,7 +121,6 @@ public function lihatNilai(Request $request)
                         ->where('tahun', $tahunDipilih)
                         ->first();
 
-    // Data Tahun Lalu (Filter Modul)
     $domainDataLalu = DB::table('domain_hasil')
         ->join('domain', 'domain_hasil.id_domain', '=', 'domain.id_domain')
         ->where('domain.modul', $modul)

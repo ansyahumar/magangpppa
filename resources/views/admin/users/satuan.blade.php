@@ -116,7 +116,6 @@
             
             openEditModal(item) {
                 this.editMode = true;
-                // Sangat penting: Menangkap id_satuan agar URL action form terbentuk sempurna
                 this.form = { 
                     id_satuan: item.id_satuan, 
                     satuan: item.satuan, 
@@ -145,7 +144,6 @@
                 reverseButtons: true
             }).then((result) => {
                 if (result.isConfirmed) {
-                    // Jika user klik "Ya", jalankan submit form
                     this.submit();
                 }
             });

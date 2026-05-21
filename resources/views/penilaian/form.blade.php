@@ -1,6 +1,5 @@
 <x-app-layout>
 <script>
-    // Mengubah judul tab browser secara dinamis
     document.title = "Form Penilaian {{ strtoupper($modul) }}";
 </script>
 
@@ -26,9 +25,6 @@
         <div>
             <h2 class="text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight">
                 Form Penilaian {{ strtoupper($modul) }}
-                @if(Auth::user()->role === 'p2') 
-                    <span class="text-amber-600">(Target)</span> 
-                @endif
             </h2>
         </div>
 <form method="get" action="{{ route('penilaian.form') }}" class="bg-white dark:bg-gray-800 p-2 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
@@ -52,12 +48,11 @@
         
         <div class="h-6 w-[1px] bg-gray-200 dark:bg-gray-600"></div>
         <div class="px-3">
-            @php $currentYearIsFinal = in_array($tahun, $finalizedYears ?? []); @endphp
-            @if ($currentYearIsFinal)
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-200">Terkunci</span>
-            @else
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-800 border border-green-200">Terbuka</span>
-            @endif
+@if (isset($statusKunciFinal) && $statusKunciFinal)
+    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-200">Terkunci</span>
+@else
+    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-800 border border-green-200">Terbuka</span>
+@endif
         </div>
     </div>
 </form>
@@ -97,7 +92,6 @@
                                 @foreach($a->indikator as $ind)
                                     @php 
         $n = $draft->get($ind->id_indikator); 
-        // Mengambil kolom 'status' dari tabel penilaian_indikator
         $statusIndikator = $n ? $n->status : 'draft'; 
         $isFinal = ($statusIndikator === 'final');
         $currentNum = $globalIndikatorCount++; 
@@ -149,7 +143,6 @@
 @if(Auth::user()->role === 'user')
     <div class="flex justify-end mt-10 pb-12 border-t pt-8">
         @if ($statusKunciFinal) 
-            {{-- TAMPILAN TERKUNCI (Jika status di penilaian_indikator adalah final) --}}
             <div class="flex items-center gap-2 px-6 py-3 bg-gray-100 dark:bg-gray-700/50 text-gray-500 rounded-2xl border border-dashed border-gray-300">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
@@ -157,7 +150,6 @@
                 <span class="text-sm font-semibold">Penilaian Tahun {{ $tahun }} ({{ strtoupper($modul) }}) Telah Dikunci</span>
             </div>
         @else
-            {{-- TAMPILAN TOMBOL (Jika status masih draft/belum ada data final) --}}
             <button type="button" onclick="finalisasiUser()" class="px-8 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold rounded-2xl shadow-lg hover:-translate-y-1 transition-all">
                 Finalisasi Penilaian {{ strtoupper($modul) }} {{ $tahun }}
             </button>
@@ -207,7 +199,6 @@
     buktiClicked = true;
 }
 async function finalisasiUser(e) {
-    // 1. Mencegah perilaku default (terutama jika tombol ada di dalam form)
     if (e) {
         e.preventDefault();
         e.stopPropagation();
@@ -218,13 +209,9 @@ async function finalisasiUser(e) {
         const selectModul = document.querySelector('select[name="modul"]');
         const modulAktif = selectModul ? selectModul.value : 'spbe';
         const allRows = document.querySelectorAll('.baris-indikator');
-        
         let emptyCount = 0;
         let firstEmptyRow = null;
-
-        // 2. Validasi baris yang belum diisi
         allRows.forEach(row => {
-            // Reset style ring merah sebelumnya jika ada
             row.classList.remove('ring-2', 'ring-red-500');
             
             const hasAccess = !row.classList.contains('pointer-events-none');
@@ -240,18 +227,15 @@ async function finalisasiUser(e) {
             }
         });
 
-        // 3. Jika ada yang kosong, hentikan proses dan scroll ke atas
         if (emptyCount > 0) {
             await Swal.fire({
                 title: 'Belum Lengkap',
                 text: `Ada ${emptyCount} indikator jatah Anda yang belum diisi.`,
                 icon: 'warning',
                 confirmButtonText: 'Tinjau Sekarang',
-                // CRITICAL: Mencegah fokus kembali ke tombol di bawah setelah klik OK
                 returnFocus: false 
             });
 
-            // Berikan sedikit delay agar modal benar-benar tertutup sebelum scroll
             setTimeout(() => {
                 if (firstEmptyRow) {
                     firstEmptyRow.scrollIntoView({ 
@@ -259,16 +243,14 @@ async function finalisasiUser(e) {
                         block: 'center' 
                     });
                     
-                    // Opsional: Beri efek fokus agar user melihat jelas barisnya
                     firstEmptyRow.setAttribute('tabindex', '-1');
                     firstEmptyRow.focus({ preventScroll: true });
                 }
             }, 300);
             
-            return; // Hentikan eksekusi
+            return;
         }
 
-        // 4. Konfirmasi Finalisasi jika data sudah lengkap
         const konfirmasi = await Swal.fire({
             title: 'Finalisasi Unit Kerja?',
             text: `Indikator modul ${modulAktif.toUpperCase()} tahun ${tahun} akan dikunci.`,
@@ -331,7 +313,6 @@ async function showModal(indikatorId, nomorUrut) {
     activeIndikatorId = indikatorId;
     activeNomorUrut = nomorUrut;
     
-    // TAMBAHKAN BARIS INI: ambil nilai dari dropdown modul
     const selectModul = document.querySelector('select[name="modul"]');
     const modulAktif = selectModul ? selectModul.value : 'spbe'; 
     const selectTahun = document.getElementById('global-select-tahun');
@@ -350,28 +331,14 @@ async function showModal(indikatorId, nomorUrut) {
             content.innerHTML = '<div class="p-8 text-center text-gray-500 font-semibold">Data kriteria tidak ditemukan.</div>';
             return;
         }
-
-        // --- MULAI PERBAIKAN DI SINI ---
-        
-        // 1. Ambil elemen baris berdasarkan ID indikator
         const rowElement = document.getElementById(`row-${indikatorId}`);
-        
-        // 2. Ambil status dari atribut 'data-status' yang ada di baris tabel (HTML)
         const currentStatus = rowElement ? rowElement.dataset.status : 'draft';
-
-        // 3. Tentukan apakah indikator ini sudah final secara database
         const isIndikatorFinal = (currentStatus === 'final');
-        
-        const isYearFinalizedGlobal = {{ $currentYearIsFinal ? 'true' : 'false' }};
-        
-        // 4. Gabungkan logika: Terkunci jika Tahun Final secara global ATAU Status Indikator adalah 'final'
+        const isYearFinalizedGlobal = {{ (isset($statusKunciFinal) && $statusKunciFinal) ? 'true' : 'false' }};        
         const finalLockStatus = isYearFinalizedGlobal || isIndikatorFinal;
-        
         const historiRow = data.kriteria.find(k => k.nilai_histori > 0);
         const nilaiHistoriTahunLalu = historiRow ? parseFloat(historiRow.nilai_histori) : 0;
         const isModeHistori = data.mode === 'histori';
-
-        // --- SELESAI PERBAIKAN LOGIKA STATUS ---
 
         if (finalLockStatus) {
             saveBtn.classList.add('hidden');
@@ -721,7 +688,6 @@ displayDiv.appendChild(tagLink);
                 
                 if (res.ok) {
                     Swal.fire('Berhasil', 'Data berhasil disimpan', 'success').then(() => {
-                        // Reload halaman agar perubahan nilai di tabel utama terlihat
                         window.location.reload();
                     });
                 } else {
@@ -731,7 +697,7 @@ displayDiv.appendChild(tagLink);
                 Swal.fire('Gagal', e.message, 'error');
             }
         }
-    }; // Tutup saveBtn.onclick
+    };
 
     document.querySelectorAll('.indikator-item').forEach(btn => {
         btn.onclick = (e) => {

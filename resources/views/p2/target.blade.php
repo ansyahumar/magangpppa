@@ -5,9 +5,7 @@
     <div class="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div>
             <h2 class="text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight">
-                {{-- Judul Dashboard Dinamis --}}
                 Form Penilaian {{ $modul == 'pemdi' ? 'PEMDI' : 'SPBE' }} 
-                
                 @if(Auth::user()->role === 'p2') 
                     <span class="{{ $modul == 'pemdi' ? 'text-emerald-600' : 'text-amber-600' }}">
                         (Target {{ strtoupper($modul) }})
@@ -170,7 +168,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function showModal(indikatorId, nomorUrut) {
         activeIndikatorId = indikatorId;
-// Di dalam async function showModal(indikatorId, nomorUrut)
 const tahunAktifVal = selectTahun.value || new Date().getFullYear();
 const selectModulElement = document.querySelector('select[name="modul"]');
 const modulAktif = document.querySelector('select[name="modul"]').value; // Ambil nilai modul        
@@ -179,7 +176,6 @@ const modulAktif = document.querySelector('select[name="modul"]').value; // Ambi
         saveBtn.classList.add('hidden');
         
         try {
-    // Tambahkan &modul=${modulAktif}
     const res = await fetch(`/indikator/${indikatorId}/detail?tahun=${tahunAktifVal}&modul=${modulAktif}`);
     const data = await res.json();
 
@@ -409,7 +405,6 @@ const selectModul = document.querySelector('select[name="modul"]');
     if (result.isConfirmed) {
         Swal.fire({ title: 'Menyimpan...', didOpen: () => Swal.showLoading(), allowOutsideClick: false });
 
-// Di dalam saveBtn.onclick
 const fd = new FormData();
 const modulAktif = document.querySelector('select[name="modul"]').value;       
  const kriteria = [{

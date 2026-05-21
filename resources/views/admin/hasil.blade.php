@@ -2,7 +2,6 @@
 
 @include('layouts.fav')
 @php
-    // Definisikan di sini agar bisa dipakai di tag <title> di bawahnya
     $modul = request('modul', 'spbe');
     $tahun = $tahunDipilih ?? date('Y');
 @endphp
@@ -11,19 +10,14 @@
 @section('content')
 @php
     $tahunLalu = is_numeric($tahun) ? ($tahun - 1) : (date('Y') - 1);
-
-    // 1. Query Indeks Utama (Tabel ini wajib punya kolom 'modul')
     $indeksSekarang = \DB::table('hasil_indeks')
         ->where('tahun', $tahun)
         ->where('modul', $modul)
         ->first();
-
     $indeksLalu = \DB::table('hasil_indeks')
         ->where('tahun', $tahunLalu)
         ->where('modul', $modul)
         ->first();
-
-    // 2. Query Domain Hasil (Filter lewat Join ke Domain)
     $domainHasil = \DB::table('domain_hasil')
         ->join('domain', 'domain_hasil.id_domain', '=', 'domain.id_domain')
         ->where('domain_hasil.tahun', $tahun)
@@ -31,24 +25,19 @@
         ->select('domain_hasil.*')
         ->get()
         ->keyBy('id_domain');
-
-    // 3. Query Aspek Hasil (Filter lewat Join ke Aspek -> Join ke Domain)
     $aspekHasil = \DB::table('aspek_hasil')
         ->join('aspek', 'aspek_hasil.id_aspek', '=', 'aspek.id_aspek')
         ->join('domain', 'aspek.id_domain', '=', 'domain.id_domain')
         ->where('aspek_hasil.tahun', $tahun)
-        ->where('domain.modul', $modul) // Filter otomatis lewat kakeknya (domain)
+        ->where('domain.modul', $modul)
         ->select('aspek_hasil.*')
         ->get()
         ->keyBy('id_aspek');
-
-    // 4. List Domain untuk Loop
     $allDomainsList = \DB::table('domain')
         ->where('tahun', $tahun)
         ->where('modul', $modul)
         ->orderBy('urutan', 'asc')->get();
 
-    // 5. List Aspek untuk Loop (Join ke Domain)
     $allAspeks = \DB::table('aspek')
         ->join('domain', 'aspek.id_domain', '=', 'domain.id_domain')
         ->where('aspek.tahun', $tahun)
@@ -58,7 +47,6 @@
         ->get()
         ->groupBy('id_domain');
 
-    // 6. Hitung Progress (Join ke Aspek -> Join ke Domain)
     $totalIndikator = \DB::table('indikator')
         ->join('aspek', 'indikator.id_aspek', '=', 'aspek.id_aspek')
         ->join('domain', 'aspek.id_domain', '=', 'domain.id_domain')
@@ -78,8 +66,6 @@
 $spbeSekarang = $indeksSekarang->indeks_akhir_eksternal ?? 0;
     $spbeLama = $indeksLalu->indeks_akhir_eksternal ?? 0;
     $selisih = (float)$spbeSekarang - (float)$spbeLama;
-    
-    // PASTIKAN DUA BARIS INI ADA DI SINI
     $aspekCounterGlobal = 1;
     $indikatorCounterGlobal = 1;
     $persenJalan = $totalIndikator > 0 ? round(($terisi / $totalIndikator) * 100) : 0;
@@ -109,7 +95,7 @@ $spbeSekarang = $indeksSekarang->indeks_akhir_eksternal ?? 0;
     <select name="tahun" onchange="this.form.submit()" class="border-none focus:ring-0 text-sm font-bold text-slate-700 bg-transparent cursor-pointer">
         @php 
             $listTahun = \DB::table('domain')
-                ->where('modul', $modul) // Filter tahun berdasarkan modul yang relevan
+                ->where('modul', $modul)
                 ->distinct()
                 ->orderBy('tahun', 'desc')
                 ->pluck('tahun'); 
@@ -139,7 +125,6 @@ $spbeSekarang = $indeksSekarang->indeks_akhir_eksternal ?? 0;
         </div>
 
        @php
-    // Menghitung total indikator dengan Join ke Domain untuk filter modul
     $totalIndikator = \DB::table('indikator')
         ->join('aspek', 'indikator.id_aspek', '=', 'aspek.id_aspek')
         ->join('domain', 'aspek.id_domain', '=', 'domain.id_domain')
@@ -147,7 +132,6 @@ $spbeSekarang = $indeksSekarang->indeks_akhir_eksternal ?? 0;
         ->where('domain.modul', $modul)
         ->count() ?: 47;
 
-    // Menghitung indikator yang sudah terisi
     $terisi = \DB::table('penilaian_kriteria')
         ->join('indikator', 'penilaian_kriteria.id_indikator', '=', 'indikator.id_indikator')
         ->join('aspek', 'indikator.id_aspek', '=', 'aspek.id_aspek')

@@ -106,13 +106,8 @@ $n_domain = DB::table('bobot_domain')->where('tahun', $tahun)->pluck('bobot', 'i
 
         $total_spbe += ($nilai_domain_kalkulasi * ($total_bobot_d / 100));
     }
-
-    $final_spbe = round($total_spbe, 2);
-
-   // Contoh modifikasi di PenilaianHelper.php
-// Hitung rata-rata dari semua nilai aspek
+$final_spbe = round($total_spbe, 2);
 $rataRataAspek = count($m_aspek) > 0 ? array_sum($m_aspek) / count($m_aspek) : 0;
-// Hitung rata-rata dari semua nilai domain
 $rataRataDomain = count($domain_results) > 0 ? array_sum($domain_results) / count($domain_results) : 0;
 
 DB::table('hasil_indeks')->updateOrInsert(
@@ -120,8 +115,8 @@ DB::table('hasil_indeks')->updateOrInsert(
     [
         'indeks_spbe'   => $final_spbe,
         'predikat'      => self::getPredikat($final_spbe),
-        'indeks_aspek'  => round($rataRataAspek, 2),  // Menyimpan angka tunggal (desimal)
-        'indeks_domain' => round($rataRataDomain, 2), // Menyimpan angka tunggal (desimal)
+        'indeks_aspek'  => round($rataRataAspek, 2),
+        'indeks_domain' => round($rataRataDomain, 2), 
         'updated_at'    => now()
     ]
 );

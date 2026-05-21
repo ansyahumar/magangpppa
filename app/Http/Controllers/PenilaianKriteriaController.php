@@ -150,10 +150,7 @@ if ($isLockedUnit && $user->role === 'user') {
 
     $firstKriteria = reset($kriteriaData);
         $firstKriteria = reset($kriteriaData);
-       // ... kode awal ...
 $kriteriaId = $firstKriteria['kriteria_id'] ?? null;
-
-// Pastikan pencarian existingRow mencakup modul
 $existingRow = DB::table('penilaian_kriteria')
     ->where([
         'id_indikator' => $id_indikator, 
@@ -169,7 +166,6 @@ foreach ($kriteriaData as $data) {
         'id_kriteria'=> $data['kriteria_id']
     ];
 
-    // Pemetaan Role ke Kolom Nilai
     if ($user->role === 'verifikator') {
         if (!$existingRow || is_null($existingRow->nilai_asesor_internal)) {
             throw new \Exception('Verifikator belum bisa memberi nilai karena User belum mengisi penilaian.');
@@ -191,7 +187,6 @@ foreach ($kriteriaData as $data) {
         $updateData['status_target'] = '';
     }
 
-    // MENGGUNAKAN UPDATE OR INSERT UNTUK MENCEGAH DUPLIKASI
     DB::table('penilaian_kriteria')->updateOrInsert(
         [
             'id_indikator' => $id_indikator,
@@ -201,7 +196,6 @@ foreach ($kriteriaData as $data) {
         $updateData
     );
 
-    // Update existingRow agar pengecekan di luar loop (untuk nilaiDashboard) akurat
     if (!$existingRow) {
         $existingRow = DB::table('penilaian_kriteria')
             ->where(['id_indikator' => $id_indikator, 'tahun' => $tahun, 'modul' => $modul])
@@ -323,7 +317,7 @@ $kriteria = DB::table('penilaian_kriteria')
             ->where([
                 'id_indikator' => $id, 
                 'tahun'        => $tahun,
-                'modul'        => $modul // WAJIB ADA
+                'modul'        => $modul
             ])->get();        $catatan = DB::table('catatan_kriteria')->where(['id_indikator' => $id, 'tahun' => $tahun])->first();
         
         $logs = [];
