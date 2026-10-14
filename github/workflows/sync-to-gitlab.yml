@@ -1,0 +1,22 @@
+name: Sync to GitLab
+
+on:
+  push:
+    branches:
+      - main # Ganti menjadi master jika branch utama Anda bernama master
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Mirror to GitLab
+        uses: kujov/gitlab-sync@main
+        with:
+          gitlab_url: https://gitlab.com
+          username: ansyahumar
+          gitlab_pat: ${{ secrets.GITLAB_PAT }}
